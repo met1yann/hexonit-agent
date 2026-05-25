@@ -293,26 +293,22 @@ export class HexonitAgent {
   }
 
   private async executeToolCalls(toolCalls: NonNullable<ChatMessage['tool_calls']>): Promise<void> {
-    const validCalls = toolCalls.filter(tc => {
-      const rawName = tc.function.name || '';
-      const cleanName = this.sanitizeToolName(rawName);
-      if (!this.isValidToolName(cleanName) || cleanName !== rawName) {
-        Logger.warning(`Tool "${rawName}" not found, skipping`);
-        return false;
-      }
-      return true;
-    });
-    if (validCalls.length === 0) return;
-    const results = await Promise.all(validCalls.map(async (tc) => {
+    const results = await Promise.all(toolCalls.map(async (tc) => {
       let args: any;
       try { args = JSON.parse(tc.function.arguments); } catch { args = tc.function.arguments; }
-      const name = this.sanitizeToolName(tc.function.name);
+      const rawName = tc.function.name || '';
+      const name = this.sanitizeToolName(rawName);
+      if (!name || !this.isValidToolName(name)) {
+        Logger.warning(`Tool "${rawName}" not found, skipping`);
+        return null;
+      }
+      if (name !== rawName) Logger.tool(`${rawName} -> ${name}`, 'fixed name');
       Logger.tool(name, 'executing...');
       const result = await this.registry.executeTool(name, args);
       return { id: tc.id, name, result };
     }));
     for (const r of results) {
-      this.messages.push({ role: 'tool', tool_call_id: r.id, name: r.name, content: r.result });
+      if (r) this.messages.push({ role: 'tool', tool_call_id: r.id, name: r.name, content: r.result });
     }
   }
 
