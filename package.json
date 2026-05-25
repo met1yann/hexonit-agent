@@ -48,10 +48,10 @@
   "license": "AGPL-3.0-only",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/anomalyco/hexonit-agent.git"
+    "url": "git+https://github.com/met1yann/hexonit-agent.git"
   },
   "bugs": {
-    "url": "https://github.com/anomalyco/hexonit-agent/issues"
+    "url": "https://github.com/met1yann/hexonit-agent/issues"
   },
-  "homepage": "https://github.com/anomalyco/hexonit-agent"
+  "homepage": "https://github.com/met1yann/hexonit-agent"
 }

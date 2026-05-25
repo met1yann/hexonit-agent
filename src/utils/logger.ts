@@ -37,21 +37,19 @@ export class Logger {
     const t = theme();
 
     const betaBanner = [
-      chalk.yellow('  ╔═══════════════════════════════════════════════════════════╗'),
-      chalk.yellow('  ║                ') + chalk.yellow.bold('⚠  HEXONIT BETA  ⚠') + chalk.yellow('                ║'),
-      chalk.yellow('  ║    ') + chalk.dim('Hata yapabilir — May make mistakes — 反馈') + chalk.yellow('    ║'),
-      chalk.yellow('  ║    ') + chalk.dim('Görüşleriniz: github.com/anomalyco/hexonit') + chalk.yellow('    ║'),
-      chalk.yellow('  ╚═══════════════════════════════════════════════════════════╝'),
+      chalk.yellow('  +----------------------------------------------------------+'),
+      chalk.yellow('  |              !  HEXONIT BETA  !                          |'),
+      chalk.yellow('  |   Hata yapabilir - May make mistakes                     |'),
+      chalk.yellow('  |   Geri bildirim: github.com/met1yann/hexonit-agent       |'),
+      chalk.yellow('  +----------------------------------------------------------+'),
       '',
     ].join('\n');
 
     const logo = [
-      t.primary('  ██╗  ██╗███████╗██╗  ██╗ ██████╗ ███╗   ██╗██╗████████╗'),
-      t.primary('  ██║  ██║██╔════╝╚██╗██╔╝██╔═══██╗████╗  ██║██║╚══██╔══╝'),
-      t.primary('  ███████║█████╗   ╚███╔╝ ██║   ██║██╔██╗ ██║██║   ██║   '),
-      t.primary('  ██╔══██║██╔══╝   ██╔██╗ ██║   ██║██║╚██╗██║██║   ██║   '),
-      t.primary('  ██║  ██║███████╗██╔╝ ██╗╚██████╔╝██║ ╚████║██║   ██║   '),
-      t.primary('  ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═══╝╚═╝   ╚═╝   '),
+      t.primary('   _  _  ____  ____  _  _  _____  ___   _  _  _  _  '),
+      t.primary('  | || ||___  ||  _|| || ||_   _|| _ \\ | || || || | '),
+      t.primary('  | || |_ / / | |_ | || |  | |  |  _/ | \\ V  V /| | '),
+      t.primary('  |___ v_\\_\\ |____||_||_|  |_|  |_|    \\_/\\_/ |_| '),
       '',
       t.muted('        v2.1.0-beta  |  Autonomous AI Agent CLI  |  BETA'),
       '',

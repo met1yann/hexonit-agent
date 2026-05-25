@@ -20,10 +20,10 @@ const PROVIDER_DETAILS: Record<string, { url: string; color: string }> = {
 function renderTitle(text: string): void {
   const w = Math.min(process.stdout.columns || 80, 60);
   const pad = Math.max(0, Math.floor((w - text.length - 4) / 2));
-  console.log('\n' + chalk.yellow('┌' + '─'.repeat(w) + '┐'));
-  console.log(chalk.yellow('│') + ' '.repeat(pad) + chalk.bold('⚠ ' + text + ' ⚠') + ' '.repeat(Math.max(0, w - pad - text.length - 4)) + chalk.yellow('│'));
-  console.log(chalk.yellow('│') + ' '.repeat(Math.max(0, Math.floor((w - 38) / 2))) + chalk.dim('BETA — Hata yapabilir / May make mistakes') + ' '.repeat(Math.max(0, w - 38 - Math.floor((w - 38) / 2))) + chalk.yellow('│'));
-  console.log(chalk.yellow('└' + '─'.repeat(w) + '┘') + '\n');
+  console.log('\n' + chalk.yellow('+' + '-'.repeat(w) + '+'));
+  console.log(chalk.yellow('|') + ' '.repeat(pad) + chalk.bold('! ' + text + ' !') + ' '.repeat(Math.max(0, w - pad - text.length - 4)) + chalk.yellow('|'));
+  console.log(chalk.yellow('|') + ' '.repeat(Math.max(0, Math.floor((w - 38) / 2))) + chalk.dim('BETA - Hata yapabilir / May make mistakes') + ' '.repeat(Math.max(0, w - 38 - Math.floor((w - 38) / 2))) + chalk.yellow('|'));
+  console.log(chalk.yellow('+' + '-'.repeat(w) + '+') + '\n');
 }
 
 export async function runSetup(): Promise<void> {
@@ -33,10 +33,10 @@ export async function runSetup(): Promise<void> {
 
   const config = loadConfig();
 
-  console.log(chalk.cyan('╔══════════════════════════════════════════════════════╗'));
-  console.log(chalk.cyan('║  ') + chalk.white('Hoş geldiniz! Hexonit\'i yapılandıralım.            ') + chalk.cyan(' ║'));
-  console.log(chalk.cyan('║  ') + chalk.white('Welcome! Let\'s configure Hexonit.                      ') + chalk.cyan(' ║'));
-  console.log(chalk.cyan('╚══════════════════════════════════════════════════════╝'));
+  console.log(chalk.cyan('+----------------------------------------------------+'));
+  console.log(chalk.cyan('|  ') + chalk.white('Hos geldiniz! Hexonit\'i yapilandiralim.              ') + chalk.cyan(' |'));
+  console.log(chalk.cyan('|  ') + chalk.white('Welcome! Let\'s configure Hexonit.                        ') + chalk.cyan(' |'));
+  console.log(chalk.cyan('+----------------------------------------------------+'));
 
   const provider = await select<string>({
     message: chalk.cyan('Select AI provider / Sağlayıcı seç:'),
@@ -112,13 +112,13 @@ export async function runSetup(): Promise<void> {
     keys: { ...config.keys, [provider]: key },
   });
 
-  console.log('\n' + chalk.green('╔══════════════════════════════════════════════════════╗'));
-  console.log(chalk.green('║  ') + chalk.white.bold('✓  Hexonit configured successfully!') + chalk.green('   ║'));
-  console.log(chalk.green('║  ') + chalk.white('✓  Hexonit başarıyla yapılandırıldı!') + chalk.green('      ║'));
-  console.log(chalk.green('╠══════════════════════════════════════════════════════╣'));
-  console.log(chalk.green('║  ') + chalk.yellow('⚠  BETA — Hata yapabilir / May make mistakes') + chalk.green('  ║'));
-  console.log(chalk.green('║  ') + chalk.dim('  Görüşleriniz: github.com/anomalyco/hexonit') + chalk.green('   ║'));
-  console.log(chalk.green('╚══════════════════════════════════════════════════════╝'));
+  console.log('\n' + chalk.green('+----------------------------------------------------+'));
+  console.log(chalk.green('|  ') + chalk.white.bold('OK  Hexonit configured successfully!') + chalk.green('    |'));
+  console.log(chalk.green('|  ') + chalk.white('OK  Hexonit basariyla yapilandirildi!') + chalk.green('      |'));
+  console.log(chalk.green('+----------------------------------------------------+'));
+  console.log(chalk.green('|  ') + chalk.yellow('!  BETA - Hata yapabilir / May make mistakes') + chalk.green('  |'));
+  console.log(chalk.green('|  ') + chalk.dim('  github.com/met1yann/hexonit-agent') + chalk.green('               |'));
+  console.log(chalk.green('+----------------------------------------------------+'));
 
   console.log('\n' + chalk.dim('  Next steps / Sonraki adımlar:'));
   console.log(chalk.dim('    hexonit chat              ') + chalk.white('Start interactive chat'));

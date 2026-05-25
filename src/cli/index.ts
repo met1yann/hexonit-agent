@@ -142,10 +142,10 @@ program
   .option('--dry-run', 'Show what would be deleted / Ne silineceğini göster')
   .action(async (options) => {
     Logger.splashScreen();
-    console.log('\n' + chalk.yellow('  ╔════════════════════════════════════════╗'));
-    console.log(chalk.yellow('  ║        ⚠  RESET / SIFIRLA  ⚠          ║'));
-    console.log(chalk.yellow('  ║   BETA — Hata yapabilir                ║'));
-    console.log(chalk.yellow('  ╚════════════════════════════════════════╝') + '\n');
+    console.log('\n' + chalk.yellow('  +----------------------------------------------+'));
+    console.log(chalk.yellow('  |       !  RESET / SIFIRLA  !                  |'));
+    console.log(chalk.yellow('  |   BETA - Hata yapabilir                      |'));
+    console.log(chalk.yellow('  +----------------------------------------------+') + '\n');
 
     const toDelete = clearConfig({
       keepKeys: options.keepKeys,
@@ -195,10 +195,10 @@ program
       } catch {}
     }
 
-    console.log('\n' + chalk.green('  ╔════════════════════════════════════════╗'));
-    console.log(chalk.green('  ║    ✓  Reset complete / Sıfırlama tamam  ║'));
-    console.log(chalk.green('  ║    Run ') + chalk.white('hexonit setup') + chalk.green(' to reconfigure  ║'));
-    console.log(chalk.green('  ╚════════════════════════════════════════╝') + '\n');
+    console.log('\n' + chalk.green('  +----------------------------------------------+'));
+    console.log(chalk.green('  |  OK  Reset complete / Sifirlama tamam    |'));
+    console.log(chalk.green('  |  Run ') + chalk.white('hexonit setup') + chalk.green(' to reconfigure      |'));
+    console.log(chalk.green('  +----------------------------------------------+') + '\n');
   });
 
 const sessionCmd = program
@@ -348,10 +348,10 @@ program
   });
 
 program.action(() => {
-  console.log(chalk.yellow('  ╔════════════════════════════════════════╗'));
-  console.log(chalk.yellow('  ║      ⚠  HEXONIT BETA  ⚠              ║'));
-  console.log(chalk.yellow('  ║  Hata yapabilir / May make mistakes   ║'));
-  console.log(chalk.yellow('  ╚════════════════════════════════════════╝'));
+  console.log(chalk.yellow('  +----------------------------------------------+'));
+  console.log(chalk.yellow('  |         !  HEXONIT BETA  !                   |'));
+  console.log(chalk.yellow('  |  Hata yapabilir / May make mistakes         |'));
+  console.log(chalk.yellow('  +----------------------------------------------+'));
   Logger.splashScreen();
   console.log(chalk.dim('\n  Usage / Kullanım:'));
   console.log(chalk.dim('    hexonit                 ') + chalk.white('Start interactive chat'));

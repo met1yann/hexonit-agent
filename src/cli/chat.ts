@@ -191,11 +191,11 @@ function showLanguageOptions(agent: HexonitAgent): void {
 }
 
 function showBetaWarning(): void {
-  console.log(chalk.yellow('  ╔════════════════════════════════════════╗'));
-  console.log(chalk.yellow('  ║  ⚠  BETA — Hata yapabilir             ║'));
-  console.log(chalk.yellow('  ║  May make mistakes                     ║'));
-  console.log(chalk.yellow('  ║  Geri bildirim: github.com/anomalyco/  ║'));
-  console.log(chalk.yellow('  ╚════════════════════════════════════════╝'));
+  console.log(chalk.yellow('  +----------------------------------------------+'));
+  console.log(chalk.yellow('  |  !  BETA - Hata yapabilir                   |'));
+  console.log(chalk.yellow('  |  May make mistakes                           |'));
+  console.log(chalk.yellow('  |  github.com/met1yann/hexonit-agent           |'));
+  console.log(chalk.yellow('  +----------------------------------------------+'));
   console.log('');
 }
 
