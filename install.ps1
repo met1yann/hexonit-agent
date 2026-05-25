@@ -2,36 +2,29 @@
 # Run: iwr -useb https://raw.githubusercontent.com/met1yann/hexonit-agent/main/install.ps1 | iex
 
 $RepoUrl = "https://github.com/met1yann/hexonit-agent"
+$AppDir = "$env:USERPROFILE\.hexonit\app"
 $ConfigDir = "$env:USERPROFILE\.hexonit"
 
 Write-Host "== Hexonit Agent Installer ==" -ForegroundColor Cyan
-Write-Host ""
 
-# Step 0 - Clean old install
-Remove-Item "$env:APPDATA\npm\node_modules\hexonit-agent" -Recurse -Force -ErrorAction SilentlyContinue
+# Clean old broken install
 Remove-Item "$env:APPDATA\npm\hexonit*" -Force -ErrorAction SilentlyContinue
+Remove-Item "$env:APPDATA\npm\node_modules\hexonit-agent" -Recurse -Force -ErrorAction SilentlyContinue
 
-# Step 1 - Node.js check
-Write-Host "[1/4] Node.js kontrol ediliyor..." -ForegroundColor Cyan
+# Step 1 - Node.js
+Write-Host "[1] Node.js kontrol..." -ForegroundColor Cyan
 $nodeVer = node --version 2>$null
-if ($nodeVer) {
-    Write-Host "  OK" -ForegroundColor Green
-} else {
-    Write-Host "  Node.js bulunamadi. https://nodejs.org adresinden kurun." -ForegroundColor Red
-    exit 1
-}
+if (-not $nodeVer) { Write-Host "HATA: https://nodejs.org adresinden Node.js kurun" -ForegroundColor Red; exit 1 }
+Write-Host "  OK $($nodeVer.Trim())" -ForegroundColor Green
 
-# Step 2 - Download
-Write-Host "[2/4] Indiriliyor..." -ForegroundColor Cyan
-$tempDir = "$env:TEMP\hexonit-install"
-Remove-Item $tempDir -Recurse -Force -ErrorAction SilentlyContinue
-
-# Try git first (quiet mode = no progress output)
+# Step 2 - Download (permanent directory)
+Write-Host "[2] Hexonit indiriliyor..." -ForegroundColor Cyan
+Remove-Item $AppDir -Recurse -Force -ErrorAction SilentlyContinue
 $useGit = $false
 try { $null = Get-Command git -ErrorAction Stop; $useGit = $true } catch {}
 
 if ($useGit) {
-    git clone --depth 1 --quiet $RepoUrl $tempDir 2>$null
+    git clone --depth 1 --quiet $RepoUrl $AppDir 2>$null
     if ($LASTEXITCODE -ne 0) { $useGit = $false }
 }
 
@@ -39,46 +32,43 @@ if (-not $useGit) {
     $zipFile = "$env:TEMP\hexonit.zip"
     Remove-Item $zipFile -ErrorAction SilentlyContinue
     Invoke-WebRequest -Uri "$RepoUrl/archive/refs/heads/main.zip" -OutFile $zipFile -UseBasicParsing
-    Expand-Archive -Path $zipFile -DestinationPath $env:TEMP -Force
+    Expand-Archive -Path $zipFile -DestinationPath "$env:USERPROFILE\.hexonit" -Force
     Remove-Item $zipFile -Force -ErrorAction SilentlyContinue
-    $tempDir = "$env:TEMP\hexonit-agent-main"
-    if (-not (Test-Path $tempDir)) {
-        $dirs = Get-ChildItem "$env:TEMP\hexonit-agent-main*" -Directory
-        if ($dirs) { $tempDir = $dirs[0].FullName }
-    }
+    $dirs = Get-ChildItem "$env:USERPROFILE\.hexonit\hexonit-agent*" -Directory
+    if ($dirs) { Rename-Item $dirs[0].FullName $AppDir -Force }
 }
-
-Push-Location $tempDir
 Write-Host "  OK" -ForegroundColor Green
 
+Push-Location $AppDir
+
 # Step 3 - Build
-Write-Host "[3/4] Bilesenler yukleniyor..." -ForegroundColor Cyan
+Write-Host "[3] Bilesenler yukleniyor..." -ForegroundColor Cyan
 npm install --loglevel=error 2>$null
-if ($LASTEXITCODE -ne 0) { Write-Host "  HATA: npm install basarisiz" -ForegroundColor Red; Pop-Location; exit 1 }
+if ($LASTEXITCODE -ne 0) { Write-Host "HATA: npm install" -ForegroundColor Red; Pop-Location; exit 1 }
 
 npm run build --loglevel=error 2>$null
-if ($LASTEXITCODE -ne 0) { Write-Host "  HATA: Build basarisiz" -ForegroundColor Red; Pop-Location; exit 1 }
+if ($LASTEXITCODE -ne 0) { Write-Host "HATA: Build" -ForegroundColor Red; Pop-Location; exit 1 }
+Write-Host "  OK" -ForegroundColor Green
 
-npm install -g . --force 2>$null
+# Step 4 - Global komut
+Write-Host "[4] hexonit komutu kaydediliyor..." -ForegroundColor Cyan
+npm link 2>$null
 if ($LASTEXITCODE -ne 0) {
-    Write-Host "  HATA: Global kurulum basarisiz. Yonetici PowerShell'den calistirin." -ForegroundColor Red
+    Write-Host "HATA: Yonetici PowerShell acip surayi calistirin:" -ForegroundColor Yellow
+    Write-Host "  cd $AppDir && npm link" -ForegroundColor Yellow
     Pop-Location; exit 1
 }
 Write-Host "  OK" -ForegroundColor Green
 
 Pop-Location
 
-# Step 4 - Config
-Write-Host "[4/4] Ayarlar..." -ForegroundColor Cyan
+# Step 5 - Config
 if (-not (Test-Path $ConfigDir)) { New-Item -ItemType Directory -Path $ConfigDir -Force | Out-Null }
-Write-Host "  OK" -ForegroundColor Green
 
 Set-Location $env:USERPROFILE
-Remove-Item $tempDir -Recurse -Force -ErrorAction SilentlyContinue
 
 Write-Host ""
 Write-Host "Kurulum tamam!" -ForegroundColor Green
-Write-Host "Sirasiyla:" -ForegroundColor White
 Write-Host "  hexonit setup" -ForegroundColor Cyan
 Write-Host "  hexonit chat" -ForegroundColor Cyan
 Write-Host ""
