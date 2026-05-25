@@ -6,7 +6,7 @@
 </p>
 
 <p align="center">
-  <img src="assets/logo.svg" alt="Hexonit Agent Logo" width="620">
+  <img src="assets/logo.jpg" alt="Hexonit Agent Logo" width="620">
 </p>
 
 <h1 align="center">Hexonit Agent</h1>
