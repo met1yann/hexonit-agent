@@ -36,51 +36,43 @@ export class Logger {
     console.clear();
     const t = theme();
 
-    const betaBanner = [
-      chalk.yellow('  +----------------------------------------------------------+'),
-      chalk.yellow('  |              !  HEXONIT BETA  !                          |'),
-      chalk.yellow('  |   Hata yapabilir - May make mistakes                     |'),
-      chalk.yellow('  |   Geri bildirim: github.com/met1yann/hexonit-agent       |'),
-      chalk.yellow('  +----------------------------------------------------------+'),
-      '',
-    ].join('\n');
-
     const logo = [
       t.primary('   _  _  ____  ____  _  _  _____  ___   _  _  _  _  '),
       t.primary('  | || ||___  ||  _|| || ||_   _|| _ \\ | || || || | '),
       t.primary('  | || |_ / / | |_ | || |  | |  |  _/ | \\ V  V /| | '),
       t.primary('  |___ v_\\_\\ |____||_||_|  |_|  |_|    \\_/\\_/ |_| '),
       '',
-      t.muted('        v2.1.0-beta  |  Autonomous AI Agent CLI  |  BETA'),
+      t.muted('        v2.1.0-beta  |  Autonomous AI Agent CLI'),
+      '',
+      chalk.yellow('  !  Hexonit BETA - hata yapabilir / may make mistakes'),
       '',
     ].join('\n');
 
-    console.log(betaBanner);
     console.log(logo);
   }
 
   static info(message: string): void {
-    console.log(chalk.gray(' │ ') + theme().info('■ ') + message);
+    console.log(chalk.gray('| ') + theme().info('> ') + message);
   }
 
   static success(message: string): void {
-    console.log(chalk.gray(' │ ') + theme().success('◆ ') + message);
+    console.log(chalk.gray('| ') + theme().success('OK ') + message);
   }
 
   static warning(message: string): void {
-    console.log(chalk.gray(' │ ') + theme().warning('▲ ') + message);
+    console.log(chalk.gray('| ') + theme().warning('! ') + message);
   }
 
   static error(message: string, error?: unknown): void {
-    console.log(chalk.gray(' │ ') + theme().error('● ERROR: ') + message);
+    console.log(chalk.gray('| ') + theme().error('ERROR: ') + message);
     if (error) {
       const errText = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
-      console.log(chalk.gray(' │   └─ ') + theme().error(errText));
+      console.log(chalk.gray('|   -> ') + theme().error(errText));
     }
   }
 
   static system(message: string): void {
-    console.log(chalk.gray(' │ ') + theme().muted('⚙ ' + message));
+    console.log(chalk.gray('| ') + theme().muted('* ' + message));
   }
 
   private static renderInline(text: string): string {
@@ -94,7 +86,7 @@ export class Logger {
 
   static agent(content: string): void {
     const t = theme();
-    console.log('\n' + t.agent('  ▼ ') + t.agent.bold('Hexonit'));
+    console.log('\n' + t.agent('  > ') + t.agent.bold('Hexonit'));
     const text = content.replace(/\\n/g, '\n');
     const lines = text.split('\n');
 
@@ -121,7 +113,7 @@ export class Logger {
               return (parts[ci] || '').length;
             }));
           });
-          const sep = t.border('├' + colWidths.map((w) => '─'.repeat(w + 2)).join('┼') + '┤');
+          const sep = t.border('+-' + colWidths.map((w) => '-'.repeat(w)).join('-+-') + '-+');
           const printRow = (cells: string[], isHdr = false) => {
             const rendered = cells.map((c, ci) => {
               const w = colWidths[ci] || 4;
@@ -130,16 +122,16 @@ export class Logger {
               const diff = w - stripped.length;
               return (isHdr ? chalk.bold(r) : r) + (diff > 0 ? ' '.repeat(diff) : '');
             });
-            return t.border('│ ') + rendered.join(t.border(' │ ')) + t.border(' │');
+            return t.border('| ') + rendered.join(t.border(' | ')) + t.border(' |');
           };
-          console.log(chalk.gray(' │ ') + printRow(headerCells, true));
-          console.log(chalk.gray(' │ ') + sep);
+          console.log(chalk.gray('| ') + printRow(headerCells, true));
+          console.log(chalk.gray('| ') + sep);
           for (const dr of dataRaw) {
             console.log(chalk.gray(' │ ') + printRow(splitRow(dr)));
           }
         } else {
           for (const r of tableRows) {
-            console.log(chalk.gray(' │ ') + this.renderInline(r));
+            console.log(chalk.gray('| ') + this.renderInline(r));
           }
         }
         continue;
@@ -159,38 +151,38 @@ export class Logger {
           i++;
         }
         const code = codeLines.join('\n');
-        console.log(chalk.gray(' │ ') + t.border('┌─' + (lang ? ' ' + lang + ' ' : '') + '─'.repeat(Math.max(2, 40 - lang.length)) + '┐'));
+        console.log(chalk.gray('| ') + t.border('+-' + (lang ? ' ' + lang + ' ' : '') + '-'.repeat(Math.max(2, 40 - lang.length)) + '+'));
         for (const cl of codeLines) {
-          console.log(chalk.gray(' │ ') + t.secondary('│ ' + cl));
+          console.log(chalk.gray('| ') + t.secondary('| ' + cl));
         }
-        console.log(chalk.gray(' │ ') + t.border('└' + '─'.repeat(44) + '┘'));
+        console.log(chalk.gray('| ') + t.border('+-' + '-'.repeat(44) + '+'));
         continue;
       }
 
       if (/^#{1,6}\s/.test(trimmed)) {
         const level = trimmed.match(/^(#+)/)![1].length;
         const headerText = trimmed.replace(/^#+\s*/, '');
-        const prefix = level === 1 ? '── ' : '  ';
-        console.log(chalk.gray(' │ ') + (level <= 2 ? t.primary.bold(prefix + this.renderInline(headerText)) : chalk.bold(this.renderInline(headerText))));
+        const prefix = level === 1 ? '-- ' : '  ';
+        console.log(chalk.gray('| ') + (level <= 2 ? t.primary.bold(prefix + this.renderInline(headerText)) : chalk.bold(this.renderInline(headerText))));
         i++;
         continue;
       }
 
       if (/^(\*{3,}|-{3,}|_{3,})\s*$/.test(trimmed)) {
         const w = Math.min(process.stdout.columns || 80, 80) - 6;
-        console.log(chalk.gray(' │ ') + chalk.dim('─'.repeat(Math.max(4, w))));
+        console.log(chalk.gray('| ') + chalk.dim('-'.repeat(Math.max(4, w))));
         i++;
         continue;
       }
 
       if (trimmed.startsWith('> ')) {
         const quoteText = trimmed.replace(/^>\s*/, '');
-        console.log(chalk.gray(' │ ') + t.border('▎') + this.renderInline(quoteText));
+        console.log(chalk.gray('| ') + t.border('> ') + this.renderInline(quoteText));
         i++;
         continue;
       }
 
-      console.log(chalk.gray(' │ ') + this.renderInline(raw));
+        console.log(chalk.gray('| ') + this.renderInline(raw));
       i++;
     }
     console.log('');
@@ -198,7 +190,7 @@ export class Logger {
 
   static tool(name: string, action: string): void {
     const t = theme();
-    console.log(chalk.gray(' │   ') + t.warning('◈') + chalk.gray(' [') + t.secondary(name) + chalk.gray('] ') + action);
+    console.log(chalk.gray('|   ') + t.warning('*') + chalk.gray(' [') + t.secondary(name) + chalk.gray('] ') + action);
   }
 
   static rawStream(chunk: string): void {
@@ -207,7 +199,7 @@ export class Logger {
 
   static usage(promptTokens: number, completionTokens: number): void {
     const t = theme();
-    console.log(chalk.gray(' │ ') + t.muted(`⚡ ${promptTokens}↑ ${completionTokens}↓ tokens`));
+    console.log(chalk.gray('| ') + t.muted(`${promptTokens} up ${completionTokens} down tokens`));
   }
 
   static commandList(): void {
@@ -230,7 +222,7 @@ export class Logger {
       '  /model       Model değiştir / Change model',
       '  /exit        Çıkış / Exit',
     ];
-    console.log('\n' + t.border(' Komutlar / Commands ') + '\n' + cmds.map(c => chalk.gray(' │ ') + t.info(c)).join('\n'));
+    console.log('\n' + t.border(' Komutlar / Commands ') + '\n' + cmds.map(c => chalk.gray('| ') + t.info(c)).join('\n'));
     console.log('');
   }
 }

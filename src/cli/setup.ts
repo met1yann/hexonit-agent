@@ -33,8 +33,7 @@ function step(num: number, total: number, label: string): void {
 export async function runSetup(): Promise<void> {
   Logger.splashScreen();
 
-  console.log(chalk.yellow.bold('\n  !  Hexonit Setup / Kurulum'));
-  console.log(chalk.dim('  BETA -- Hata yapabilir / May make mistakes\n'));
+  console.log(chalk.yellow.bold('\n  Hexonit Setup / Kurulum\n'));
 
   const config = loadConfig();
   const TOTAL = 7;
@@ -153,8 +152,6 @@ export async function runSetup(): Promise<void> {
   const w = Math.min(process.stdout.columns || 80, 50);
   console.log('\n' + chalk.green('  +' + '-'.repeat(w) + '+'));
   console.log(chalk.green('  |') + ' '.repeat(Math.max(0, Math.floor((w - 28) / 2))) + chalk.white.bold('Hexonit Hazir / Ready!') + ' '.repeat(Math.max(0, w - 28 - Math.floor((w - 28) / 2))) + chalk.green('|'));
-  console.log(chalk.green('  +' + '-'.repeat(w) + '+'));
-  console.log(chalk.green('  |') + ' '.repeat(Math.max(0, Math.floor((w - 42) / 2))) + chalk.yellow('!  BETA  !') + ' '.repeat(Math.max(0, w - 42 - Math.floor((w - 42) / 2))) + chalk.green('|'));
   console.log(chalk.green('  +' + '-'.repeat(w) + '+'));
   console.log('');
   Logger.info('hexonit chat              —  Sohbet baslat');

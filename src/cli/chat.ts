@@ -190,18 +190,10 @@ function showLanguageOptions(agent: HexonitAgent): void {
   Logger.info('Use /lang tr or /lang en to switch');
 }
 
-function showBetaWarning(): void {
-  console.log(chalk.yellow('  +----------------------------------------------+'));
-  console.log(chalk.yellow('  |  !  BETA - Hata yapabilir                   |'));
-  console.log(chalk.yellow('  |  May make mistakes                           |'));
-  console.log(chalk.yellow('  |  github.com/met1yann/hexonit-agent           |'));
-  console.log(chalk.yellow('  +----------------------------------------------+'));
-  console.log('');
-}
+
 
 export async function runChat(agent: HexonitAgent, options?: any): Promise<void> {
   Logger.splashScreen();
-  showBetaWarning();
 
   const isForked = options?.fork;
   const isContinued = options?.continue;
@@ -240,8 +232,8 @@ export async function runChat(agent: HexonitAgent, options?: any): Promise<void>
   }
 
   Logger.info(chalk.dim('Type your message or use:'));
-  Logger.info(chalk.dim('  @file    — Reference a file  |  !command — Run shell command'));
-  Logger.info(chalk.dim('  /help    — Show commands     |  /       — Open command menu'));
+  Logger.info(chalk.dim('  @file    - Reference a file    !command - Run shell command'));
+  Logger.info(chalk.dim('  /help    - Show commands       /       - Open command menu'));
   console.log('');
 
   let exit = false;
@@ -255,7 +247,7 @@ export async function runChat(agent: HexonitAgent, options?: any): Promise<void>
       rawInput = await input({
         message: chalk.cyan('You'),
         theme: {
-          prefix: chalk.cyan('\u276F'),
+          prefix: chalk.cyan('>'),
           style: { message: (t: string) => chalk.cyan(t) },
         },
       });
@@ -322,36 +314,35 @@ export async function runChat(agent: HexonitAgent, options?: any): Promise<void>
       agent.clearHistory();
       lastMessages = [];
       Logger.splashScreen();
-      showBetaWarning();
       Logger.success('Fresh session started / Yeni oturum başlatıldı.');
       continue;
     }
 
     if (sanitized === '/' || sanitized === '/menu') {
       const SLASH_MENU_ITEMS = [
-        { name: chalk.white('\u2753  Help & commands        /help'), value: '/help' },
-        { name: chalk.white('\uD83D\uDD04  New session             /new'), value: '/new' },
-        { name: chalk.white('\u2139\uFE0F  Agent status            /status'), value: '/status' },
-        { name: chalk.white('\uD83E\uDDE0  Memory management       /memory'), value: '/memory' },
-        { name: chalk.white('\uD83D\uDDD1\uFE0F  Forget memories         /forget'), value: '/forget' },
-        { name: chalk.white('\uD83C\uDF10  Change language          /lang'), value: '/lang' },
-        { name: chalk.white('\uD83E\uDD16  Self-think mode          /think'), value: '/think' },
-        { name: chalk.white('\uD83D\uDEE0\uFE0F  Registered tools        /tools'), value: '/tools' },
-        { name: chalk.white('\uD83D\uDCBB  System telemetry         /system'), value: '/system' },
-        { name: chalk.white('\uD83D\uDCC8  Token usage              /tokens'), value: '/tokens' },
-        { name: chalk.white('\uD83D\uDC7F  Toggle GODMODE           /godmode'), value: '/godmode' },
-        { name: chalk.white('\uD83C\uDFAF  Toggle YOLO mode         /yolomode'), value: '/yolomode' },
-        { name: chalk.white('\uD83D\uDD04  Loop current task        /loop'), value: '/loop' },
-        { name: chalk.white('\uD83D\uDCE6  Toggle sandbox           /sandbox'), value: '/sandbox' },
-        { name: chalk.white('\u2705  Always approve           /autoapprove'), value: '/autoapprove' },
-        { name: chalk.white('\uD83E\uDD16  Change model             /model'), value: '/model' },
-        { name: chalk.white('\uD83D\uDCCB  List sessions            /sessions'), value: '/sessions' },
-        { name: chalk.white('\uD83D\uDCC4  Export session           /export'), value: '/export' },
-        { name: chalk.white('\uD83D\uDDC2\uFE0F  Fork session             /fork'), value: '/fork' },
-        { name: chalk.white('\u2702\uFE0F  Copy last response       /copy'), value: '/copy' },
-        { name: chalk.white('\uD83D\uDD19  Undo last message        /undo'), value: '/undo' },
-        { name: chalk.white('\uD83D\uDEAA  Exit                    /exit'), value: '/exit' },
-        { name: chalk.dim('\u25C0  Cancel'), value: 'cancel' },
+        { name: chalk.white('?   Help & commands        /help'), value: '/help' },
+        { name: chalk.white('+   New session             /new'), value: '/new' },
+        { name: chalk.white('i   Agent status            /status'), value: '/status' },
+        { name: chalk.white('M   Memory management       /memory'), value: '/memory' },
+        { name: chalk.white('X   Forget memories         /forget'), value: '/forget' },
+        { name: chalk.white('L   Change language          /lang'), value: '/lang' },
+        { name: chalk.white('T   Self-think mode          /think'), value: '/think' },
+        { name: chalk.white('!   Registered tools        /tools'), value: '/tools' },
+        { name: chalk.white('S   System telemetry         /system'), value: '/system' },
+        { name: chalk.white('$   Token usage              /tokens'), value: '/tokens' },
+        { name: chalk.white('G   Toggle GODMODE           /godmode'), value: '/godmode' },
+        { name: chalk.white('Y   Toggle YOLO mode         /yolomode'), value: '/yolomode' },
+        { name: chalk.white('R   Loop current task        /loop'), value: '/loop' },
+        { name: chalk.white('B   Toggle sandbox           /sandbox'), value: '/sandbox' },
+        { name: chalk.white('A   Always approve           /autoapprove'), value: '/autoapprove' },
+        { name: chalk.white('C   Change model             /model'), value: '/model' },
+        { name: chalk.white('#   List sessions            /sessions'), value: '/sessions' },
+        { name: chalk.white('E   Export session           /export'), value: '/export' },
+        { name: chalk.white('F   Fork session             /fork'), value: '/fork' },
+        { name: chalk.white('@   Copy last response       /copy'), value: '/copy' },
+        { name: chalk.white('U   Undo last message        /undo'), value: '/undo' },
+        { name: chalk.white('Q   Exit                    /exit'), value: '/exit' },
+        { name: chalk.dim('<-  Cancel'), value: 'cancel' },
       ];
 
       const command = await select<string>({
@@ -479,7 +470,6 @@ async function handleDirectCommand(cmd: string, agent: HexonitAgent): Promise<bo
       console.clear();
       agent.clearHistory();
       Logger.splashScreen();
-      showBetaWarning();
       Logger.success('Fresh session started / Yeni oturum başlatıldı.');
       return true;
     }
