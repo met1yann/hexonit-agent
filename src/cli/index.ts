@@ -13,6 +13,7 @@ import { GroqProvider } from '../providers/groq.js';
 import { BaseProvider } from '../providers/index.js';
 import { ToolRegistry } from '../tools/index.js';
 import { HexonitAgent } from '../core/agent.js';
+import { UserProfileManager } from '../core/profile.js';
 import { BashTool } from '../tools/builtin/bash.js';
 import { ReadFileTool } from '../tools/builtin/read-file.js';
 import { WriteFileTool } from '../tools/builtin/write-file.js';
@@ -30,6 +31,7 @@ import { GitTool } from '../tools/builtin/git.js';
 import { ProjectContextTool } from '../tools/builtin/project-context.js';
 import { SubagentTool } from '../tools/builtin/subagent.js';
 import { RunCommandTool } from '../tools/builtin/run-command.js';
+import { ProfileTool } from '../tools/builtin/profile.js';
 import { Logger } from '../utils/logger.js';
 import chalk from 'chalk';
 import fs from 'fs';
@@ -65,6 +67,7 @@ function createAgent(providerName?: string, modelName?: string): HexonitAgent {
   }
 
   const provider: BaseProvider = new ProviderClass(apiKey, mn);
+  const profileManager = new UserProfileManager();
   const registry = new ToolRegistry();
   registry.register(new BashTool());
   registry.register(new ReadFileTool());
@@ -82,6 +85,7 @@ function createAgent(providerName?: string, modelName?: string): HexonitAgent {
   registry.register(new GitTool());
   registry.register(new ProjectContextTool());
   registry.register(new RunCommandTool());
+  registry.register(new ProfileTool(profileManager));
   registry.register(new SubagentTool(async (task) => {
     const child = createAgent(pn, mn);
     child.setModel(mn);
@@ -90,7 +94,7 @@ function createAgent(providerName?: string, modelName?: string): HexonitAgent {
     return result;
   }));
 
-  return new HexonitAgent(provider, registry, mn);
+  return new HexonitAgent(provider, registry, mn, profileManager);
 }
 
 const program = new Command();

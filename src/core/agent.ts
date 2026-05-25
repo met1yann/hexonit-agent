@@ -8,6 +8,7 @@ import { generateDecodeInstruction, applyEncodingChain } from '../jailbreak/enco
 import { MemoryManager } from './memory.js';
 import { detectLanguage, getLanguageInstruction, BILINGUAL_SYSTEM_PROMPT } from './language.js';
 import { getSelfThinkInstruction, SELF_AWARENESS_PROMPT } from './consciousness.js';
+import { UserProfileManager } from './profile.js';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
@@ -45,8 +46,10 @@ export class HexonitAgent {
   private selfThinkEnabled = false;
   private memoryEnabled = true;
   private alwaysAllowSession = false;
+  private profileManager: UserProfileManager;
 
   cleanup(): void {
+    this.profileManager.endSession();
     this.saveSession();
     try {
       const browserTool = this.registry.getTool('browser');
@@ -56,7 +59,7 @@ export class HexonitAgent {
     } catch {}
   }
 
-  constructor(provider: BaseProvider, registry: ToolRegistry, model?: string) {
+  constructor(provider: BaseProvider, registry: ToolRegistry, model?: string, profileManager?: UserProfileManager) {
     this.provider = provider;
     this.registry = registry;
     this.model = model;
@@ -69,6 +72,8 @@ export class HexonitAgent {
     this.selfThinkEnabled = config.selfThink ?? false;
     this.memoryEnabled = config.memoryEnabled ?? true;
     this.memoryManager = new MemoryManager();
+    this.profileManager = profileManager || new UserProfileManager();
+    this.profileManager.startSession();
     this.setupPermissions();
     this.resetHistory();
   }
@@ -235,6 +240,16 @@ export class HexonitAgent {
     }
 
     prompt += `\n\n${SELF_AWARENESS_PROMPT}`;
+
+    if (this.memoryEnabled) {
+      const profileSummary = this.profileManager.getProfileSummary();
+      if (profileSummary) {
+        prompt += `\n\n=== USER PROFILE ===\n${profileSummary}`;
+      }
+      const welcome = this.profileManager.getWelcomeMessage();
+      prompt += `\n\nFirst message hint: ${welcome}`;
+    }
+
     prompt += getLanguageInstruction(lang);
 
     if (config.systemPromptAddon) {
