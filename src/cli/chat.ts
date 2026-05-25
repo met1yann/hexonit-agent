@@ -245,13 +245,12 @@ export async function runChat(agent: HexonitAgent, options?: any): Promise<void>
   let lastMessages: { user: string; assistant: string }[] = [];
   let listeningForEscape = false;
 
-  const onRawData = (chunk: Buffer) => {
-    if (!listeningForEscape) return;
-    if (chunk[0] === 0x1b || chunk[0] === 0x03) {
+  const onKeyPress = (str: string, key: { name: string; ctrl: boolean }) => {
+    if (listeningForEscape && (key.name === 'escape' || (key.ctrl && key.name === 'c'))) {
       agent.abort();
     }
   };
-  process.stdin.on('data', onRawData);
+  process.stdin.on('keypress', onKeyPress);
 
   while (!exit) {
     let rawInput: string;
@@ -421,7 +420,7 @@ export async function runChat(agent: HexonitAgent, options?: any): Promise<void>
 
     try {
       listeningForEscape = true;
-      if (process.stdin.isTTY && !process.stdin.isRaw) process.stdin.setRawMode(true);
+      try { if (process.stdin.isTTY) process.stdin.setRawMode(true); } catch {}
 
       if (agent.supportsStreaming()) {
         await agent.runStream(processedMsg);
@@ -436,7 +435,7 @@ export async function runChat(agent: HexonitAgent, options?: any): Promise<void>
       Logger.error('Chat error', error);
     } finally {
       listeningForEscape = false;
-      if (process.stdin.isTTY && process.stdin.isRaw) process.stdin.setRawMode(false);
+      try { if (process.stdin.isTTY) process.stdin.setRawMode(false); } catch {}
     }
   }
 
