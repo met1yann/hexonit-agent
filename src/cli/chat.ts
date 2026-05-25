@@ -245,12 +245,13 @@ export async function runChat(agent: HexonitAgent, options?: any): Promise<void>
   let lastMessages: { user: string; assistant: string }[] = [];
   let listeningForEscape = false;
 
-  const onKeyPress = (str: string, key: { name: string; ctrl: boolean }) => {
-    if (listeningForEscape && (key.name === 'escape' || (key.ctrl && key.name === 'c'))) {
+  const onRawData = (chunk: Buffer) => {
+    if (!listeningForEscape) return;
+    if (chunk[0] === 0x1b || chunk[0] === 0x03) {
       agent.abort();
     }
   };
-  process.stdin.on('keypress', onKeyPress);
+  process.stdin.on('data', onRawData);
 
   while (!exit) {
     let rawInput: string;

@@ -67,16 +67,7 @@ export async function closeBrowser(): Promise<void> {
 export class BrowserTool implements Tool {
   closeBrowser = closeBrowser;
   name = 'browser';
-  description = `Full browser automation. Opens REAL Chrome window on your screen. Use list_elements first to discover what's on the page, then type/click/extract.
-
-WORKFLOW:
-1. navigate to a URL
-2. list_elements to see all inputs, buttons, links
-3. type text into an input (use the "selector" from list_elements)
-4. click a button
-5. extract results
-
-For Google search: input name is "q". For most sites, try input[type="search"], input[placeholder*="ara"], input[placeholder*="search"]`;
+  description = 'Full browser automation. Opens a real Chrome window. Use list_elements first to see what is on the page, then type text, click buttons, or extract data. Supports navigate, click, type, extract, screenshot, evaluate JavaScript, wait, and close.';
 
   parameters = {
     type: 'object',
