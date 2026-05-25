@@ -1,149 +1,157 @@
 # Hexonit Agent -- Windows Installation Script
 # Run: iwr -useb https://raw.githubusercontent.com/met1yann/hexonit-agent/main/install.ps1 | iex
 
-$ErrorActionPreference = "Stop"
 $RepoUrl = "https://github.com/met1yann/hexonit-agent"
 $ConfigDir = "$env:USERPROFILE\.hexonit"
 
-function Write-Color { param([string]$Color, [string]$Text) Write-Host $Text -ForegroundColor $Color }
+function Color { param($c,$t) Write-Host $t -ForegroundColor $c }
 
 function Show-Banner {
     Clear-Host
-    Write-Color Yellow "  +----------------------------------------------+"
-    Write-Color Yellow "  |         !  HEXONIT BETA  !                    |"
-    Write-Color Yellow "  |  Hata yapabilir / May make mistakes          |"
-    Write-Color Yellow "  +----------------------------------------------+"
+    Color Yellow "  +----------------------------------------------+"
+    Color Yellow "  |         !  HEXONIT BETA  !                   |"
+    Color Yellow "  |  Hata yapabilir / May make mistakes          |"
+    Color Yellow "  +----------------------------------------------+"
     Write-Host ""
-    Write-Color Cyan "   _  _  ____  ____  _  _  _____  ___   _  _  _  _  "
-    Write-Color Cyan "  | || ||___  ||  _|| || ||_   _|| _ \ | || || || | "
-    Write-Color Cyan "  | || |_ / / | |_ | || |  | |  |  _/ | \ V  V /| | "
-    Write-Color Cyan "  |___ v_\_\ |____||_||_|  |_|  |_|    \_/\_/ |_| "
+    Color Cyan "   _  _  ____  ____  _  _  _____  ___   _  _  _  _  "
+    Color Cyan "  | || ||___  ||  _|| || ||_   _|| _ \ | || || || | "
+    Color Cyan "  | || |_ / / | |_ | || |  | |  |  _/ | \ V  V /| | "
+    Color Cyan "  |___ v_\_\ |____||_||_|  |_|  |_|    \_/\_/ |_| "
     Write-Host ""
-    Write-Host "      Autonomous AI Agent CLI  |  BETA" -ForegroundColor DarkGray
+    Write-Host "      Autonomous AI Agent CLI  |  BETA"
     Write-Host ""
 }
 
-# Step 0
+function Run-Native {
+    param($ScriptBlock)
+    & $ScriptBlock
+    if ($LASTEXITCODE -ne 0 -and $null -ne $LASTEXITCODE) {
+        throw "Command failed with exit code $LASTEXITCODE"
+    }
+}
+
 Show-Banner
 
 # Step 1: Check Node.js
-Write-Color Cyan "  [1/5] Checking Node.js..."
-try {
-    $nodeVersion = node --version 2>&1 | Out-String
-    Write-Color Green "  Node.js $($nodeVersion.Trim()) detected"
-} catch {
-    Write-Color Yellow "  Node.js not found. Attempting install via winget..."
+Color Cyan "  [1/5] Checking Node.js..."
+$nodeVersion = & node --version 2>&1
+if ($LASTEXITCODE -eq 0 -and $nodeVersion) {
+    Color Green "  Node.js $($nodeVersion.Trim()) detected"
+} else {
+    Color Yellow "  Node.js not found. Attempting installation..."
     try {
-        winget install OpenJS.NodeJS.LTS --accept-source-agreements --accept-package-agreements 2>&1 | Out-Null
+        & winget install OpenJS.NodeJS.LTS --accept-source-agreements --accept-package-agreements 2>&1 | Out-Null
         $env:Path = [Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [Environment]::GetEnvironmentVariable("Path","User")
-        Write-Color Green "  Node.js installed"
+        Color Green "  Node.js installed"
     } catch {
-        Write-Color Red "  Please install Node.js v18+ from https://nodejs.org then run this script again"
+        Color Red "  ERROR: Please install Node.js v18+ from https://nodejs.org"
+        Color Red "  Then run this script again."
         exit 1
     }
 }
 
-# Step 2: Download and install
-Write-Color Cyan "  [2/5] Downloading hexonit-agent..."
-$tempDir = "$env:TEMP\hexonit-install-$([System.Guid]::NewGuid().ToString().Substring(0,8))"
+# Step 2: Download
+Color Cyan "  [2/5] Downloading hexonit-agent..."
+$tempDir = "$env:TEMP\hexonit-$([System.IO.Path]::GetRandomFileName())"
 
-if (Get-Command git -ErrorAction SilentlyContinue) {
-    try {
-        git clone --depth 1 $RepoUrl $tempDir 2>&1 | Out-Null
-        Set-Location $tempDir
-        Write-Color Green "  Repository cloned"
-    } catch {
-        Write-Color Yellow "  Git clone failed, trying zip download..."
-        $zipUrl = "$RepoUrl/archive/refs/heads/main.zip"
-        $zipFile = "$env:TEMP\hexonit.zip"
-        Remove-Item $zipFile -ErrorAction SilentlyContinue
-        Invoke-WebRequest -Uri $zipUrl -OutFile $zipFile
-        $tempDir = "$env:TEMP\hexonit-agent-main"
-        Remove-Item $tempDir -Recurse -ErrorAction SilentlyContinue
-        Expand-Archive -Path $zipFile -DestinationPath "$env:TEMP"
-        Set-Location $tempDir
-        Write-Color Green "  Zip downloaded and extracted"
+$useGit = $false
+try { $null = Get-Command git -ErrorAction Stop; $useGit = $true } catch {}
+
+if ($useGit) {
+    Color Cyan "  Using git..."
+    $output = & git clone --depth 1 $RepoUrl $tempDir 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        Color Yellow "  Git clone failed, trying zip download..."
+        $useGit = $false
+    } else {
+        Color Green "  Repository cloned"
     }
+}
+
+if (-not $useGit) {
+    Color Cyan "  Downloading zip archive..."
+    $zipFile = "$env:TEMP\hexonit-$([System.IO.Path]::GetRandomFileName()).zip"
+    try {
+        Invoke-WebRequest -Uri "$RepoUrl/archive/refs/heads/main.zip" -OutFile $zipFile -UseBasicParsing
+        Expand-Archive -Path $zipFile -DestinationPath "$env:TEMP" -Force
+        $tempDir = "$env:TEMP\hexonit-agent-main"
+        if (-not (Test-Path $tempDir)) {
+            $tempDir = (Get-ChildItem "$env:TEMP\hexonit-agent-main*" -Directory | Select-Object -First 1).FullName
+        }
+        Remove-Item $zipFile -Force -ErrorAction SilentlyContinue
+        Color Green "  Archive downloaded and extracted"
+    } catch {
+        Color Red "  ERROR: Failed to download. Check your internet connection."
+        exit 1
+    }
+}
+
+Push-Location $tempDir
+
+# Step 2b: Install dependencies
+Color Cyan "  Installing dependencies..."
+$output = & npm install 2>&1
+if ($LASTEXITCODE -ne 0) { Color Red "  npm install failed"; Pop-Location; exit 1 }
+Color Green "  Dependencies installed"
+
+# Step 2c: Build
+Color Cyan "  Building..."
+$output = & npm run build 2>&1
+if ($LASTEXITCODE -ne 0) { Color Red "  Build failed"; Pop-Location; exit 1 }
+Color Green "  Build complete"
+
+# Step 2d: Link
+Color Cyan "  Registering hexonit command..."
+$output = & npm link 2>&1
+if ($LASTEXITCODE -ne 0) {
+    Color Yellow "  npm link failed. Try running PowerShell as Admin:"
+    Color Yellow "  cd $tempDir && npm link"
 } else {
-    Write-Color Yellow "  Git not found, downloading zip..."
-    $zipUrl = "$RepoUrl/archive/refs/heads/main.zip"
-    $zipFile = "$env:TEMP\hexonit.zip"
-    Remove-Item $zipFile -ErrorAction SilentlyContinue
-    Invoke-WebRequest -Uri $zipUrl -OutFile $zipFile
-    $tempDir = "$env:TEMP\hexonit-agent-main"
-    Remove-Item $tempDir -Recurse -ErrorAction SilentlyContinue
-    Expand-Archive -Path $zipFile -DestinationPath "$env:TEMP"
-    Set-Location $tempDir
-    Write-Color Green "  Zip downloaded and extracted"
+    Color Green "  hexonit command registered"
 }
 
-Write-Color Cyan "  Installing dependencies..."
-try {
-    npm install 2>&1 | Out-Null
-    Write-Color Green "  Dependencies installed"
-} catch {
-    Write-Color Red "  npm install failed. Check your internet connection"
-    exit 1
-}
-
-Write-Color Cyan "  Building project..."
-try {
-    npm run build 2>&1 | Out-Null
-    Write-Color Green "  Build complete"
-} catch {
-    Write-Color Red "  Build failed"
-    exit 1
-}
-
-Write-Color Cyan "  Registering hexonit command..."
-try {
-    npm link 2>&1 | Out-Null
-    Write-Color Green "  hexonit command registered"
-} catch {
-    Write-Color Yellow "  npm link failed. Try running: npm link (as Admin)"
-}
+Pop-Location
 
 # Step 3: Create config directory
-Write-Color Cyan "  [3/5] Creating config directory..."
+Color Cyan "  [3/5] Creating config directory..."
 if (-not (Test-Path $ConfigDir)) {
-    New-Item -ItemType Directory -Path $ConfigDir -Force | Out-Null
-    Write-Color Green "  Created $ConfigDir"
+    $null = New-Item -ItemType Directory -Path $ConfigDir -Force
+    Color Green "  Created $ConfigDir"
 } else {
-    Write-Color Green "  Already exists"
+    Color Green "  Already exists"
 }
 
 # Step 4: PATH check
-Write-Color Cyan "  [4/5] Checking global command path..."
-$npmPrefix = npm config get prefix 2>&1 | Out-String
-$npmPrefix = $npmPrefix.Trim()
-if ($npmPrefix) {
-    $globalModules = if ($env:Path -like "*$npmPrefix*") { $true } else { $false }
-    if (-not $globalModules) {
-        Write-Color Yellow "  NOTE: Make sure $npmPrefix is in your PATH"
-        Write-Color Yellow "  Or restart your terminal after installation"
+Color Cyan "  [4/5] Checking PATH..."
+$npmPrefix = & npm config get prefix 2>&1
+if ($LASTEXITCODE -eq 0 -and $npmPrefix) {
+    $npmPrefix = $npmPrefix.Trim()
+    if ($env:Path -notlike "*$npmPrefix*") {
+        Color Yellow "  Restart your terminal, then run: hexonit setup"
     } else {
-        Write-Color Green "  PATH OK"
+        Color Green "  PATH OK"
     }
 }
 
 # Step 5: Verify
-Write-Color Cyan "  [5/5] Verification..."
+Color Cyan "  [5/5] Verification..."
 try {
-    $version = & hexonit --version 2>&1 | Out-String
-    Write-Color Green "  hexonit $($version.Trim()) ready!"
+    $version = & hexonit --version 2>&1
+    Color Green "  hexonit $($version.Trim()) ready!"
 } catch {
-    Write-Color Yellow "  Restart your terminal, then run: hexonit --version"
+    Color Yellow "  Restart your terminal, then run: hexonit --version"
 }
 
 Set-Location $env:USERPROFILE
+Remove-Item $tempDir -Recurse -Force -ErrorAction SilentlyContinue
 
 Write-Host ""
-Write-Color Green "  +----------------------------------------------+"
-Write-Color Green "  |  OK  Hexonit installed!                      |"
-Write-Color Green "  |                                              |"
-Write-Color Green ' |  Run: hexonit setup                          |'
-Write-Color Green ' |  Then: hexonit chat                          |'
-Write-Color Green "  +----------------------------------------------+"
+Color Green "  +----------------------------------------------+"
+Color Green "  |  OK  Hexonit installed!                      |"
+Color Green "  |                                              |"
+Color Green "  |  Run: hexonit setup                          |"
+Color Green "  |  Then: hexonit chat                          |"
+Color Green "  +----------------------------------------------+"
 Write-Host ""
-Write-Color Yellow "  !  BETA -- Hata yapabilir / May make mistakes"
+Color Yellow "  !  BETA -- Hata yapabilir / May make mistakes"
 Write-Host ""
