@@ -77,7 +77,7 @@ export class Logger {
     console.log(chalk.gray('| ') + theme().muted('* ' + message));
   }
 
-  private static renderInline(text: string): string {
+  static renderInline(text: string): string {
     const t = theme();
     return text
       .replace(/\*\*\*(.+?)\*\*\*/g, (_, m) => chalk.bold.italic(m))
@@ -196,7 +196,7 @@ export class Logger {
   }
 
   static rawStream(chunk: string): void {
-    process.stdout.write(chunk);
+    process.stdout.write(Logger.renderInline(chunk));
   }
 
   static usage(promptTokens: number, completionTokens: number): void {

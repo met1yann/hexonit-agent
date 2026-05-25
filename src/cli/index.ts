@@ -24,6 +24,12 @@ import { FetchUrlTool } from '../tools/builtin/fetch-url.js';
 import { ListDirTool } from '../tools/builtin/list-dir.js';
 import { CreateTool } from '../tools/builtin/create-tool.js';
 import { BrowserTool } from '../tools/builtin/browser.js';
+import { EditMultipleTool } from '../tools/builtin/edit-multiple.js';
+import { SearchCodeTool } from '../tools/builtin/search-code.js';
+import { GitTool } from '../tools/builtin/git.js';
+import { ProjectContextTool } from '../tools/builtin/project-context.js';
+import { SubagentTool } from '../tools/builtin/subagent.js';
+import { RunCommandTool } from '../tools/builtin/run-command.js';
 import { Logger } from '../utils/logger.js';
 import chalk from 'chalk';
 import fs from 'fs';
@@ -71,6 +77,18 @@ function createAgent(providerName?: string, modelName?: string): HexonitAgent {
   registry.register(new ListDirTool());
   registry.register(new CreateTool(registry));
   registry.register(new BrowserTool());
+  registry.register(new EditMultipleTool());
+  registry.register(new SearchCodeTool());
+  registry.register(new GitTool());
+  registry.register(new ProjectContextTool());
+  registry.register(new RunCommandTool());
+  registry.register(new SubagentTool(async (task) => {
+    const child = createAgent(pn, mn);
+    child.setModel(mn);
+    const result = await child.runForResult(task);
+    child.cleanup();
+    return result;
+  }));
 
   return new HexonitAgent(provider, registry, mn);
 }

@@ -394,7 +394,7 @@ export class HexonitAgent {
 
       try {
         for await (const event of stream) {
-          if (event.type === 'delta' && event.delta) { content += event.delta; }
+          if (event.type === 'delta' && event.delta) { content += event.delta; Logger.rawStream(event.delta); }
           else if (event.type === 'usage' && event.usage) {
             this.totalPromptTokens += event.usage.promptTokens;
             this.totalCompletionTokens += event.usage.completionTokens;
@@ -403,7 +403,14 @@ export class HexonitAgent {
           } else if (event.type === 'error') { Logger.error('Stream error', event.error); this.saveSession(); return; }
         }
 
-        if (content) process.stdout.write('\n');
+        const hasBlockElements = content.split('\n').some(line => {
+          const t = line.trim();
+          return t.startsWith('```') || (t.startsWith('|') && t.endsWith('|')) || /^#{1,6}\s/.test(t) || /^(\*{3,}|-{3,}|_{3,})\s*$/.test(t) || t.startsWith('> ');
+        });
+
+        if (content && !hasBlockElements) {
+          process.stdout.write('\n');
+        }
 
         if (finalMsg?.tool_calls?.length) {
           const toolNames = finalMsg.tool_calls.map(t => t.function.name).join(', ');
@@ -414,7 +421,9 @@ export class HexonitAgent {
           const message: ChatMessage = { role: 'assistant', content };
           this.messages.push(message);
           if (content.trim()) {
-            Logger.agent(content);
+            if (hasBlockElements) {
+              Logger.agent(content);
+            }
             if (this.memoryEnabled) {
               this.memoryManager.remember('episodic', content.slice(0, 500), ['auto', 'assistant-response'], 0.3);
             }
@@ -442,5 +451,55 @@ export class HexonitAgent {
     this.currentTaskYolo = false;
     this.memoryManager.consolidate();
     this.saveSession();
+  }
+
+  async runForResult(userMessage: string): Promise<string> {
+    const config = loadConfig();
+    const maxIterations = this.yoloMode ? 100 : (config.maxIterations || 25);
+
+    let finalMessage = this.godMode
+      ? this.prepareGodmodeRequest(userMessage)
+      : (this.rebuildSystemPrompt(userMessage), userMessage);
+
+    this.messages.push({ role: 'user', content: finalMessage });
+
+    if (this.yoloMode || this.currentTaskYolo) {
+      this.messages[0].content += YOLO_PROMPT_ADDON;
+    }
+
+    let isDone = false;
+    let iteration = 0;
+
+    while (!isDone && iteration < maxIterations) {
+      iteration++;
+      this.currentAbort = new AbortController();
+
+      try {
+        const response = await this.provider.generateResponse(
+          this.messages, this.registry.getAllTools(), this.model,
+          { signal: this.currentAbort.signal }
+        );
+        const message = response.message;
+        this.messages.push(message);
+        if (message.tool_calls && message.tool_calls.length > 0) {
+          await this.executeToolCalls(message.tool_calls);
+        } else {
+          isDone = true;
+          if (message.content?.trim()) {
+            if (this.memoryEnabled) {
+              this.memoryManager.remember('episodic', message.content.slice(0, 500), ['auto', 'assistant-response'], 0.3);
+            }
+            this.memoryManager.consolidate();
+            return message.content;
+          }
+          return '';
+        }
+      } catch (error: any) {
+        if (error.name === 'AbortError' || error.message?.includes('canceled')) { return '[Interrupted]'; }
+        if (this.messages[this.messages.length - 1]?.role === 'user') this.messages.pop();
+        return `[Error: ${error.message}]`;
+      }
+    }
+    return `[Max iterations (${maxIterations}) reached]`;
   }
 }
