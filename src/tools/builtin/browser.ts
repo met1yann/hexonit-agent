@@ -108,61 +108,76 @@ export class BrowserTool implements Tool {
 
         case 'list_elements': {
           const page = await ensureBrowser();
-          await waitForMs(1500);
+          await waitForMs(2000);
           const elements = await page.evaluate(() => {
-            const items: { tag: string; type?: string; name?: string; id?: string; placeholder?: string; text?: string; selector: string; role?: string; aria?: string }[] = [];
+            const items: any[] = [];
 
-            document.querySelectorAll('input, textarea, select, button, a, [role="button"], [role="searchbox"], [contenteditable]').forEach((el) => {
+            function collect(el: Element, depth = 0): void {
+              if (depth > 8) return;
               const tag = el.tagName.toLowerCase();
-              const item: any = { tag };
-              if (tag === 'input') {
-                const input = el as HTMLInputElement;
-                item.type = input.type || 'text';
-                item.name = input.name;
-                item.id = input.id;
-                item.placeholder = input.placeholder;
-                if (input.getAttribute('aria-label')) item.aria = input.getAttribute('aria-label');
-                if (input.getAttribute('data-testid')) item['data-testid'] = input.getAttribute('data-testid');
-                if (input.getAttribute('data-test-id')) item['data-test-id'] = input.getAttribute('data-test-id');
-              }
-              if (tag === 'textarea') {
-                const ta = el as HTMLTextAreaElement;
-                item.name = ta.name;
-                item.id = ta.id;
-                item.placeholder = ta.placeholder;
-              }
-              if (tag === 'button' || tag === 'a') {
-                item.text = (el as HTMLElement).innerText?.trim().slice(0, 60) || '';
-                item.id = el.id;
+              const isInteract = /^(input|textarea|select|button|a)$/.test(tag) ||
+                el.hasAttribute('role') || el.hasAttribute('aria-label') ||
+                el.getAttribute('contenteditable') === 'true';
+
+              if (isInteract && !el.closest('[aria-hidden="true"]')) {
+                const item: any = { tag };
+                if (tag === 'input') {
+                  const inp = el as HTMLInputElement;
+                  item.type = inp.type || 'text';
+                  item.name = inp.name;
+                  item.placeholder = inp.placeholder;
+                }
+                if (tag === 'button' || tag === 'a') {
+                  item.text = (el as HTMLElement).innerText?.trim().slice(0, 80) || '';
+                  const href = (el as HTMLAnchorElement).href;
+                  if (href && tag === 'a') item.href = href.slice(0, 120);
+                }
                 if (el.getAttribute('aria-label')) item.aria = el.getAttribute('aria-label');
+                if (el.hasAttribute('role')) item.role = el.getAttribute('role');
+                if (el.id) {
+                  item.selector = `#${el.id}`;
+                } else if ((el as HTMLInputElement).name) {
+                  item.selector = `${tag}[name="${(el as HTMLInputElement).name}"]`;
+                } else if (el.getAttribute('aria-label')) {
+                  item.selector = `${tag}[aria-label="${el.getAttribute('aria-label')}"]`;
+                } else if ((el as HTMLInputElement).placeholder) {
+                  item.selector = `${tag}[placeholder="${(el as HTMLInputElement).placeholder}"]`;
+                } else {
+                  const cls = Array.from(el.classList).slice(0, 2).join('.');
+                  item.selector = cls ? `${tag}.${cls}` : tag;
+                }
+                items.push(item);
               }
-              if (el.hasAttribute('role')) item.role = el.getAttribute('role');
-              if (el.id) {
-                item.selector = `#${el.id}`;
-              } else if ((el as HTMLInputElement).name) {
-                item.selector = `${tag}[name="${(el as HTMLInputElement).name}"]`;
-              } else if ((el as HTMLInputElement).placeholder) {
-                item.selector = `${tag}[placeholder="${(el as HTMLInputElement).placeholder}"]`;
-              } else if (el.getAttribute('aria-label')) {
-                item.selector = `${tag}[aria-label="${el.getAttribute('aria-label')}"]`;
-              } else {
-                item.selector = el.tagName.toLowerCase();
+
+              if (el.shadowRoot) {
+                el.shadowRoot.querySelectorAll('*').forEach(child => collect(child, depth + 1));
               }
-              items.push(item);
-            });
+              Array.from(el.children).forEach(child => collect(child, depth + 1));
+            }
+
+            document.querySelectorAll('body *').forEach(el => collect(el));
             return items;
           });
 
           if (elements.length === 0) return 'No interactive elements found on this page.';
-          let result = `Found ${elements.length} interactive elements:\n`;
-          for (const el of elements.slice(0, 40)) {
-            const parts = [`<${el.tag}`];
+
+          const seen = new Set<string>();
+          const unique = elements.filter(e => {
+            const key = `${e.tag}:${e.selector || ''}:${e.text || ''}:${e.aria || ''}`;
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          });
+
+          let result = `Found ${unique.length} interactive elements:\n`;
+          for (const el of unique.slice(0, 50)) {
+            const parts: string[] = [`<${el.tag}`];
             if (el.type) parts.push(`type="${el.type}"`);
-            if (el.name) parts.push(`name="${el.name}"`);
             if (el.placeholder) parts.push(`placeholder="${el.placeholder}"`);
             if (el.text) parts.push(`text="${el.text}"`);
             if (el.aria) parts.push(`aria="${el.aria}"`);
             if (el.role) parts.push(`role="${el.role}"`);
+            if (el.href) parts.push(`href="${el.href}"`);
             result += `  SELECTOR: ${el.selector}  ${parts.join(' ')}\n`;
           }
           return truncate(result);
@@ -185,6 +200,9 @@ export class BrowserTool implements Tool {
           if (args.submit) {
             await waitForMs(400);
             await page.keyboard.press('Enter');
+            await waitForMs(2000);
+            try { await page.waitForNavigation({ timeout: 8000 }).catch(() => {}); } catch {}
+            await waitForMs(1500);
           }
           return `Typed "${args.text || ''}" into "${args.selector}"${args.submit ? ' + Enter' : ''}`;
         }
@@ -192,9 +210,11 @@ export class BrowserTool implements Tool {
         case 'click': {
           if (!args.selector) return 'selector is required';
           const page = await ensureBrowser();
-          await page.waitForSelector(args.selector, { timeout: 8000 }).catch(() => {});
+          await page.waitForSelector(args.selector, { timeout: 10000 }).catch(() => {});
           await page.click(args.selector);
           await waitForMs(1500);
+          try { await page.waitForNavigation({ timeout: 8000 }).catch(() => {}); } catch {}
+          await waitForMs(1000);
           return `Clicked "${args.selector}"`;
         }
 
