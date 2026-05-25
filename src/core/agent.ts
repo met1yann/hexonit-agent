@@ -394,7 +394,7 @@ export class HexonitAgent {
 
       try {
         for await (const event of stream) {
-          if (event.type === 'delta' && event.delta) { content += event.delta; Logger.rawStream(event.delta); }
+          if (event.type === 'delta' && event.delta) { content += event.delta; }
           else if (event.type === 'usage' && event.usage) {
             this.totalPromptTokens += event.usage.promptTokens;
             this.totalCompletionTokens += event.usage.completionTokens;
