@@ -292,6 +292,9 @@ export class HexonitAgent {
     return m ? m[0] : '';
   }
 
+  private malformedToolCount = 0;
+  private textBasedFallback = false;
+
   private async executeToolCalls(toolCalls: NonNullable<ChatMessage['tool_calls']>): Promise<void> {
     const results = await Promise.all(toolCalls.map(async (tc) => {
       let args: any;
@@ -299,12 +302,37 @@ export class HexonitAgent {
       const rawName = tc.function.name || '';
       const name = this.sanitizeToolName(rawName);
       if (!name || !this.isValidToolName(name)) {
-        Logger.warning(`Tool "${rawName}" not found, skipping`);
+        this.malformedToolCount++;
+        Logger.warning(`Tool "${rawName}" not found`);
+        if (this.malformedToolCount >= 3) {
+          this.textBasedFallback = true;
+          Logger.warning('Switching to text-based tool mode');
+        }
         return null;
       }
-      if (name !== rawName) Logger.tool(`${rawName} -> ${name}`, 'fixed name');
+      if (name !== rawName) {
+        Logger.tool(`${rawName} -> ${name}`, 'fixed name');
+        this.malformedToolCount++;
+        if (this.malformedToolCount >= 3) {
+          this.textBasedFallback = true;
+          Logger.warning('Switching to text-based tool mode');
+        }
+      }
       Logger.tool(name, 'executing...');
-      const result = await this.registry.executeTool(name, args);
+      let result: string;
+      try {
+        result = await this.registry.executeTool(name, args);
+      } catch (e: any) {
+        Logger.warning(`Tool ${name} failed: ${e.message}, retrying with cleaned args`);
+        const cleanArgs = typeof args === 'object' && args !== null
+          ? Object.fromEntries(Object.entries(args).filter(([, v]) => v !== '' && v !== undefined))
+          : args;
+        try {
+          result = await this.registry.executeTool(name, Object.keys(cleanArgs).length ? cleanArgs : args);
+        } catch (e2: any) {
+          result = `Error: ${e2.message}`;
+        }
+      }
       return { id: tc.id, name, result };
     }));
     for (const r of results) {
@@ -355,8 +383,9 @@ export class HexonitAgent {
       this.currentAbort = new AbortController();
 
       try {
+        const runTools = this.textBasedFallback ? [] : this.registry.getAllTools();
         const response = await this.provider.generateResponse(
-          this.messages, this.registry.getAllTools(), this.model,
+          this.messages, runTools, this.model,
           { signal: this.currentAbort.signal }
         );
         const message = response.message;
@@ -416,8 +445,9 @@ export class HexonitAgent {
       Logger.system(`Step ${iteration}/${maxIterations}`);
 
       this.currentAbort = new AbortController();
+      const streamTools = this.textBasedFallback ? [] : this.registry.getAllTools();
       const stream = this.provider.generateResponseStream(
-        this.messages, this.registry.getAllTools(), this.model,
+        this.messages, streamTools, this.model,
         { signal: this.currentAbort.signal }
       );
       let content = '';
@@ -439,8 +469,12 @@ export class HexonitAgent {
           return t.startsWith('```') || (t.startsWith('|') && t.endsWith('|')) || /^#{1,6}\s/.test(t) || /^(\*{3,}|-{3,}|_{3,})\s*$/.test(t) || t.startsWith('> ');
         });
 
-        if (content && !hasBlockElements) {
-          process.stdout.write('\n');
+        if (content) {
+          if (hasBlockElements) {
+            process.stdout.write('\r\x1b[J');
+          } else {
+            process.stdout.write('\n');
+          }
         }
 
         if (finalMsg?.tool_calls?.length) {

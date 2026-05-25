@@ -103,6 +103,11 @@ export class BrowserTool implements Tool {
           if (!args.url) return 'url is required';
           const page = await ensureBrowser();
           await page.goto(args.url, { waitUntil: 'networkidle2', timeout: 30000 });
+          await waitForMs(2000);
+          await page.evaluate(() => new Promise(r => {
+            if (document.readyState === 'complete') r(0);
+            else window.addEventListener('load', () => r(0));
+          }));
           return `Navigated to ${args.url}`;
         }
 
@@ -197,14 +202,20 @@ export class BrowserTool implements Tool {
           if (args.text) {
             await page.type(args.selector, args.text, { delay: 30 });
           }
-          if (args.submit) {
+          const shouldSubmit = args.submit !== false;
+          if (shouldSubmit && args.text) {
             await waitForMs(400);
             await page.keyboard.press('Enter');
+            await waitForMs(3000);
+            try {
+              await Promise.race([
+                page.waitForNavigation({ timeout: 10000 }),
+                page.waitForFunction(() => document.readyState === 'complete', { timeout: 10000 }),
+              ]);
+            } catch {}
             await waitForMs(2000);
-            try { await page.waitForNavigation({ timeout: 8000 }).catch(() => {}); } catch {}
-            await waitForMs(1500);
           }
-          return `Typed "${args.text || ''}" into "${args.selector}"${args.submit ? ' + Enter' : ''}`;
+          return `Typed "${args.text || ''}" into "${args.selector}"${shouldSubmit && args.text ? ' + Enter' : ''}`;
         }
 
         case 'click': {
