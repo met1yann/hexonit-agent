@@ -21,6 +21,7 @@ import { GithubSearchTool } from '../tools/builtin/github.js';
 import { FetchUrlTool } from '../tools/builtin/fetch-url.js';
 import { CreateTool } from '../tools/builtin/create-tool.js';
 import { BrowserTool } from '../tools/builtin/browser.js';
+import { BrowserStartTool } from '../tools/builtin/browser-start.js';
 import { EditMultipleTool } from '../tools/builtin/edit-multiple.js';
 import { SearchCodeTool } from '../tools/builtin/search-code.js';
 import { GitTool } from '../tools/builtin/git.js';
@@ -72,6 +73,7 @@ function createAgent(providerName?: string, modelName?: string): HexonitAgent {
   registry.register(new FetchUrlTool());
   registry.register(new CreateTool(registry));
   registry.register(new BrowserTool());
+  registry.register(new BrowserStartTool());
   registry.register(new EditMultipleTool());
   registry.register(new SearchCodeTool());
   registry.register(new GitTool());

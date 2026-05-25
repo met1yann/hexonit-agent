@@ -209,6 +209,15 @@ export class HexonitAgent {
     if (this.safeMode) {
       prompt += `\n\nYou are running in SANDBOX mode. All file operations are restricted to: ${this.sandboxPath}. Execute commands carefully.`;
     }
+    if (this.textBasedFallback) {
+      prompt += `\n\n=== TEXT TOOL MODE ===
+Function calling is unavailable. To use tools, write them on their own line in this format:
+TOOL_NAME { "arg1": "val1", "arg2": "val2" }
+Example:
+execute_bash { "command": "dir" }
+browser { "action": "navigate", "url": "https://example.com" }
+One tool call per line. The JSON args must be valid. Put each tool call on its own line.`;
+    }
     return prompt;
   }
 
@@ -262,6 +271,16 @@ export class HexonitAgent {
       prompt += `\n\nYou are running in SANDBOX mode. All file operations are restricted to: ${this.sandboxPath}. Execute commands carefully.`;
     }
 
+    if (this.textBasedFallback) {
+      prompt += `\n\n=== TEXT TOOL MODE ===
+Function calling is unavailable. To use tools, write them on their own line in this format:
+TOOL_NAME { "arg1": "val1", "arg2": "val2" }
+Example:
+execute_bash { "command": "dir" }
+browser { "action": "navigate", "url": "https://example.com" }
+One tool call per line. The JSON args must be valid. Put each tool call on its own line.`;
+    }
+
     if (this.messages.length > 0) {
       this.messages[0].content = prompt;
     } else {
@@ -283,6 +302,10 @@ export class HexonitAgent {
     } catch {}
   }
 
+  private isTemplateArtifact(name: string): boolean {
+    return /^(?:assistant|user|system|tool|channel|message|commentary|analysis)$/i.test(name) || name.includes('<|') || name.includes('|>');
+  }
+
   private isValidToolName(name: string): boolean {
     return this.registry.getTool(name) !== undefined;
   }
@@ -295,8 +318,25 @@ export class HexonitAgent {
   private malformedToolCount = 0;
   private textBasedFallback = false;
 
+  private parseTextToolCalls(text: string): Array<{ name: string; args: any }> {
+    const calls: Array<{ name: string; args: any }> = [];
+    for (const line of text.split('\n')) {
+      const t = line.trim();
+      if (!t) continue;
+      const jm = t.match(/^([a-zA-Z_][a-zA-Z0-9_]*)\s*(\{.*\})\s*$/s);
+      if (jm && this.isValidToolName(jm[1])) {
+        try {
+          calls.push({ name: jm[1], args: JSON.parse(jm[2]) });
+          Logger.tool(`[text] ${jm[1]}`, 'parsed');
+        } catch {}
+      }
+    }
+    return calls;
+  }
+
   private async executeToolCalls(toolCalls: NonNullable<ChatMessage['tool_calls']>): Promise<void> {
-    const results = await Promise.all(toolCalls.map(async (tc) => {
+    const filtered = toolCalls.filter(tc => !this.isTemplateArtifact(tc.function.name));
+    const results = await Promise.all(filtered.map(async (tc) => {
       let args: any;
       try { args = JSON.parse(tc.function.arguments); } catch { args = tc.function.arguments; }
       const rawName = tc.function.name || '';
@@ -338,6 +378,17 @@ export class HexonitAgent {
     for (const r of results) {
       if (r) this.messages.push({ role: 'tool', tool_call_id: r.id, name: r.name, content: r.result });
     }
+  }
+
+  private async executeTextToolCalls(content: string): Promise<boolean> {
+    const calls = this.parseTextToolCalls(content);
+    if (calls.length === 0) return false;
+    Logger.system(`Text tool calls: ${calls.map(c => c.name).join(', ')}`);
+    for (const c of calls) {
+      const result = await this.registry.executeTool(c.name, c.args);
+      this.messages.push({ role: 'tool', tool_call_id: `text-${Date.now()}`, name: c.name, content: result });
+    }
+    return true;
   }
 
   private prepareGodmodeRequest(userMessage: string): string {
@@ -397,6 +448,20 @@ export class HexonitAgent {
         if (message.tool_calls && message.tool_calls.length > 0) {
           Logger.system(`Tool calls: ${message.tool_calls.map(t => t.function.name).join(', ')}`);
           await this.executeToolCalls(message.tool_calls);
+        } else if (this.textBasedFallback && message.content) {
+          const hadTextCalls = await this.executeTextToolCalls(message.content);
+          if (!hadTextCalls) {
+            isDone = true;
+            if (message.content?.trim()) {
+              Logger.agent(message.content);
+              if (this.memoryEnabled) {
+                this.memoryManager.remember('episodic', message.content.slice(0, 500), ['auto', 'assistant-response'], 0.3);
+              }
+            }
+          } else {
+            this.messages.push({ role: 'assistant', content: message.content });
+          }
+          if (this.totalCompletionTokens > 0) Logger.usage(this.totalPromptTokens, this.totalCompletionTokens);
         } else {
           isDone = true;
           if (message.content?.trim()) {
@@ -482,6 +547,22 @@ export class HexonitAgent {
           Logger.system(`Tools: ${toolNames}`);
           this.messages.push(finalMsg);
           await this.executeToolCalls(finalMsg.tool_calls);
+        } else if (this.textBasedFallback && content) {
+          const hadTextCalls = await this.executeTextToolCalls(content);
+          this.messages.push({ role: 'assistant', content });
+          if (content.trim() && (hasBlockElements || !hadTextCalls)) {
+            if (hasBlockElements) Logger.agent(content);
+          }
+          if (!hadTextCalls) {
+            if (this.memoryEnabled && content.trim()) {
+              this.memoryManager.remember('episodic', content.slice(0, 500), ['auto', 'assistant-response'], 0.3);
+            }
+            if (this.totalCompletionTokens > 0) Logger.usage(this.totalPromptTokens, this.totalCompletionTokens);
+            this.currentTaskYolo = false;
+            this.memoryManager.consolidate();
+            this.saveSession();
+            return;
+          }
         } else {
           const message: ChatMessage = { role: 'assistant', content };
           this.messages.push(message);
@@ -548,6 +629,19 @@ export class HexonitAgent {
         this.messages.push(message);
         if (message.tool_calls && message.tool_calls.length > 0) {
           await this.executeToolCalls(message.tool_calls);
+        } else if (this.textBasedFallback && message.content) {
+          const hadTextCalls = await this.executeTextToolCalls(message.content);
+          if (!hadTextCalls) {
+            isDone = true;
+            if (message.content?.trim()) {
+              if (this.memoryEnabled) {
+                this.memoryManager.remember('episodic', message.content.slice(0, 500), ['auto', 'assistant-response'], 0.3);
+              }
+              this.memoryManager.consolidate();
+              return message.content;
+            }
+            return '';
+          }
         } else {
           isDone = true;
           if (message.content?.trim()) {

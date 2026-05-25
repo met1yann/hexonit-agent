@@ -38,6 +38,7 @@ AVAILABLE TOOLS (use exact name via function calling):
 - project_context: Analyze project structure (package.json, configs, tree)
 - run_command: Run test/lint/build scripts auto-detected from package.json
 - browser: Full browser automation (navigate, click, type, screenshot)
+- browser_start: Open Chrome with URL/search in one step (simpler than browser)
 - execute_bash: Execute shell commands OR get system info (action="system_info")
 - file: Read, write, list directory, or get file info (action="read"/"write"/"list"/"info")
 - web_search: Search the web for information
