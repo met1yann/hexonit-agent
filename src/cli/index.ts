@@ -4,6 +4,7 @@ import { Command } from 'commander';
 import { runSetup } from './setup.js';
 import { runChat } from './chat.js';
 import { runGatewayCommand } from './gateway.js';
+import { startGuiServer } from '../gui/guiServer.js';
 import { loadConfig, clearConfig } from '../utils/config.js';
 import { confirm } from '@inquirer/prompts';
 import { OpenRouterProvider } from '../providers/openrouter.js';
@@ -343,6 +344,16 @@ program
   .argument('<action>', 'start, stop, restart, or status')
   .action(async (action: string) => {
     await runGatewayCommand(action);
+  });
+
+program
+  .command('gui')
+  .alias('dashboard')
+  .description('Start the premium personal command center dashboard [BETA]')
+  .option('-p, --port <number>', 'Port to run the dashboard on', '3890')
+  .action(async (options) => {
+    const port = parseInt(options.port) || 3890;
+    await startGuiServer(port);
   });
 
 program

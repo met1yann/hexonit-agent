@@ -27,8 +27,39 @@ function borderLine(title?: string): string {
   return chalk.gray('─'.repeat(width));
 }
 
+export type LogEvent = 
+  | { type: 'info'; message: string }
+  | { type: 'success'; message: string }
+  | { type: 'warning'; message: string }
+  | { type: 'error'; message: string; error?: any }
+  | { type: 'system'; message: string }
+  | { type: 'agent'; content: string }
+  | { type: 'tool'; name: string; action: string }
+  | { type: 'rawStream'; chunk: string }
+  | { type: 'usage'; promptTokens: number; completionTokens: number }
+  | { type: 'divider'; title?: string };
+
+type LogListener = (event: LogEvent) => void;
+
 export class Logger {
+  private static listeners: LogListener[] = [];
+
+  static addListener(listener: LogListener): void {
+    this.listeners.push(listener);
+  }
+
+  static removeListener(listener: LogListener): void {
+    this.listeners = this.listeners.filter(l => l !== listener);
+  }
+
+  private static emit(event: LogEvent): void {
+    for (const l of this.listeners) {
+      try { l(event); } catch {}
+    }
+  }
+
   static divider(title?: string): void {
+    this.emit({ type: 'divider', title });
     console.log('\n' + borderLine(title));
   }
 
@@ -54,18 +85,22 @@ export class Logger {
   }
 
   static info(message: string): void {
+    this.emit({ type: 'info', message });
     console.log(chalk.gray('| ') + theme().info('> ') + message);
   }
 
   static success(message: string): void {
+    this.emit({ type: 'success', message });
     console.log(chalk.gray('| ') + theme().success('OK ') + message);
   }
 
   static warning(message: string): void {
+    this.emit({ type: 'warning', message });
     console.log(chalk.gray('| ') + theme().warning('! ') + message);
   }
 
   static error(message: string, error?: unknown): void {
+    this.emit({ type: 'error', message, error });
     console.log(chalk.gray('| ') + theme().error('ERROR: ') + message);
     if (error) {
       const errText = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
@@ -74,6 +109,7 @@ export class Logger {
   }
 
   static system(message: string): void {
+    this.emit({ type: 'system', message });
     console.log(chalk.gray('| ') + theme().muted('* ' + message));
   }
 
@@ -87,6 +123,7 @@ export class Logger {
   }
 
   static agent(content: string): void {
+    this.emit({ type: 'agent', content });
     const t = theme();
     console.log('\n' + t.agent('  > ') + t.agent.bold('Hexonit'));
     const text = content.replace(/\\n/g, '\n');
@@ -191,15 +228,18 @@ export class Logger {
   }
 
   static tool(name: string, action: string): void {
+    this.emit({ type: 'tool', name, action });
     const t = theme();
     console.log(chalk.gray('|   ') + t.warning('*') + chalk.gray(' [') + t.secondary(name) + chalk.gray('] ') + action);
   }
 
   static rawStream(chunk: string): void {
+    this.emit({ type: 'rawStream', chunk });
     process.stdout.write(Logger.renderInline(chunk));
   }
 
   static usage(promptTokens: number, completionTokens: number): void {
+    this.emit({ type: 'usage', promptTokens, completionTokens });
     const t = theme();
     console.log(chalk.gray('| ') + t.muted(`${promptTokens} up ${completionTokens} down tokens`));
   }

@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hexonit — Autonomous Command Center</title>
+  <!-- Modern Premium Typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="app.css">
+</head>
+<body class="theme-hermes">
+  
+  <div class="glass-bg-container">
+    <div class="glow-orb bubble-1"></div>
+    <div class="glow-orb bubble-2"></div>
+    <div class="glow-orb bubble-3"></div>
+  </div>
+
+  <div class="app-layout">
+    
+    <!-- Left Sidebar (Command Bar) -->
+    <aside class="sidebar-panel">
+      <div class="brand-header">
+        <div class="logo-wrapper">H</div>
+        <div class="brand-meta">
+          <h1>Hexonit</h1>
+          <span class="badge badge-primary">AGENT OS v2.1</span>
+        </div>
+      </div>
+
+      <nav class="nav-links">
+        <button class="nav-item active" data-tab="gateway">
+          <span class="nav-icon">🔌</span>
+          <span class="nav-text">Gateways</span>
+        </button>
+        <button class="nav-item" data-tab="chat">
+          <span class="nav-icon">💬</span>
+          <span class="nav-text">Chat Studio</span>
+        </button>
+        <button class="nav-item" data-tab="memory">
+          <span class="nav-icon">🧠</span>
+          <span class="nav-text">Memory Vault</span>
+        </button>
+        <button class="nav-item" data-tab="skills">
+          <span class="nav-icon">🧪</span>
+          <span class="nav-text">Skill Lab</span>
+        </button>
+        <button class="nav-item" data-tab="settings">
+          <span class="nav-icon">⚙️</span>
+          <span class="nav-text">Control Center</span>
+        </button>
+      </nav>
+
+      <div class="system-status-card">
+        <h3>System Telemetry</h3>
+        <div class="telemetry-item">
+          <span>Uptime:</span>
+          <span id="tel-uptime">Loading...</span>
+        </div>
+        <div class="telemetry-item">
+          <span>RAM:</span>
+          <span id="tel-ram">Loading...</span>
+        </div>
+        <div class="telemetry-bar">
+          <div class="telemetry-progress" id="tel-ram-bar" style="width: 0%"></div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Workspace -->
+    <main class="main-content">
+      
+      <!-- Top Status Bar -->
+      <header class="top-status-bar">
+        <div class="header-left">
+          <h2 id="active-tab-title">Gateways Command</h2>
+          <p id="active-tab-desc">Monitor background communication channels</p>
+        </div>
+        <div class="header-right">
+          <div class="telemetry-status-pill">
+            <span class="status-dot online"></span>
+            <span id="status-model">Groq / llama-3.3-70b</span>
+          </div>
+          <button id="btn-sync" class="btn-refresh" title="Force Refresh Server State">🔄 Sync</button>
+        </div>
+      </header>
+
+      <!-- Tab Content Area -->
+      <div class="tab-viewport">
+
+        <!-- 1. Gateway Dashboard -->
+        <section id="tab-gateway" class="tab-panel active">
+          <div class="gateway-grid">
+            
+            <div class="gateway-card" id="gw-telegram">
+              <div class="gw-card-header">
+                <div class="gw-avatar telegram">T</div>
+                <div class="gw-meta">
+                  <h3>Telegram Gateway</h3>
+                  <span class="status-lbl offline" id="tg-status-lbl">Offline</span>
+                </div>
+                <div class="toggle-switch">
+                  <input type="checkbox" id="toggle-telegram">
+                  <label for="toggle-telegram"></label>
+                </div>
+              </div>
+              <div class="gw-body">
+                <p>Enables direct autonomous execution of prompts, code deployment, and task reporting sent via private messages or Telegram channels.</p>
+                <div class="gw-stats">
+                  <div class="stat-box">
+                    <span class="stat-num" id="tg-stat-msgs">0</span>
+                    <span class="stat-lbl">Parsed Messages</span>
+                  </div>
+                  <div class="stat-box">
+                    <span class="stat-num" id="tg-stat-actions">0</span>
+                    <span class="stat-lbl">Actions Completed</span>
+                  </div>
+                </div>
+                <div class="console-box mini">
+                  <div class="console-header">telegram-stream.log</div>
+                  <pre class="console-code" id="tg-log">Connecting to daemon interface...</pre>
+                </div>
+              </div>
+            </div>
+
+            <div class="gateway-card" id="gw-whatsapp">
+              <div class="gw-card-header">
+                <div class="gw-avatar whatsapp">W</div>
+                <div class="gw-meta">
+                  <h3>WhatsApp Gateway</h3>
+                  <span class="status-lbl offline" id="wa-status-lbl">Offline</span>
+                </div>
+                <div class="toggle-switch">
+                  <input type="checkbox" id="toggle-whatsapp">
+                  <label for="toggle-whatsapp"></label>
+                </div>
+              </div>
+              <div class="gw-body">
+                <p>Spawns a local QR code parser to pair a business or personal account, letting you direct the agent over standard chat threads.</p>
+                <div class="gw-qr-placeholder" id="wa-qr-container">
+                  <div class="qr-box">
+                    <span>QR Pair Unlinked</span>
+                  </div>
+                </div>
+                <div class="console-box mini">
+                  <div class="console-header">whatsapp-daemon.log</div>
+                  <pre class="console-code" id="wa-log">Pairing interface standing by.</pre>
+                </div>
+              </div>
+            </div>
+
+            <div class="gateway-card" id="gw-discord">
+              <div class="gw-card-header">
+                <div class="gw-avatar discord">D</div>
+                <div class="gw-meta">
+                  <h3>Discord Bot Daemon</h3>
+                  <span class="status-lbl offline" id="dc-status-lbl">Offline</span>
+                </div>
+                <div class="toggle-switch">
+                  <input type="checkbox" id="toggle-discord">
+                  <label for="toggle-discord"></label>
+                </div>
+              </div>
+              <div class="gw-body">
+                <p>Integrates the autonomous loop directly into Discord servers with role permissions, channel scopes, and safe interactive shells.</p>
+                <div class="form-group inline mt-2">
+                  <input type="text" placeholder="Enter Bot DM Token..." class="input-glass" id="dc-token">
+                  <button class="btn btn-primary" id="btn-save-dc">Save Key</button>
+                </div>
+                <div class="console-box mini">
+                  <div class="console-header">discord-daemon.log</div>
+                  <pre class="console-code" id="dc-log">Standing by for bot tokens...</pre>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </section>
+
+        <!-- 2. Chat & Telemetry Studio -->
+        <section id="tab-chat" class="tab-panel">
+          <div class="chat-studio-workspace">
+            
+            <!-- Left Pane: Interactive Chat Bubble flow -->
+            <div class="chat-container-panel">
+              <div class="chat-history-flow" id="chat-flow">
+                <div class="chat-bubble agent">
+                  <div class="bubble-logo">H</div>
+                  <div class="bubble-content">
+                    <p>Merhaba! Hexonit Otonom Ajanına hoş geldiniz. Arka planda çalışan Telegram ve WhatsApp gateway'leri üzerinden bana her an ulaşabileceğinizi unutmayın.</p>
+                    <p>Şu anda yerel kontrol panelindeyiz. Buradan bana talimat verebilir, sağ taraftaki Telemetri Konsolundan düşüncelerimi anlık izleyebilirsiniz.</p>
+                  </div>
+                </div>
+              </div>
+
+              <div class="chat-input-bar">
+                <textarea placeholder="Type an autonomous task or prompt here (e.g. '@config.ts update packages')..." id="chat-input" class="chat-textarea"></textarea>
+                <div class="input-actions-row">
+                  <button class="btn btn-warning" id="btn-abort" disabled>🛑 Stop Agent</button>
+                  <button class="btn btn-primary" id="btn-send">🚀 Execute Loop</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Right Pane: Real-time Developer Console -->
+            <div class="telemetry-panel">
+              <div class="telemetry-header">
+                <h3>Agent System Telemetry</h3>
+                <span class="badge badge-accent" id="agent-mode-badge">Self-Think Active</span>
+              </div>
+              <div class="console-box full">
+                <div class="console-header">hexonit-agent-runtime.log</div>
+                <pre class="console-code" id="tel-console">Standing by. Start typing in the Chat pane to stream exact agent reasoning, tool payloads, and bash commands here.</pre>
+              </div>
+            </div>
+
+          </div>
+        </section>
+
+        <!-- 3. Memory Vault -->
+        <section id="tab-memory" class="tab-panel">
+          <div class="memory-vault-workspace">
+            
+            <!-- Vault Filter Bar -->
+            <div class="vault-filters">
+              <div class="search-wrapper">
+                <input type="text" placeholder="Search memory nodes..." class="input-glass" id="mem-search">
+              </div>
+              <select class="select-glass" id="mem-filter-type">
+                <option value="all">All Memories</option>
+                <option value="factual">Factual Memories</option>
+                <option value="episodic">Episodic Logs</option>
+                <option value="procedural">Procedural Rules</option>
+              </select>
+              <button class="btn btn-danger" id="btn-wipe-memory">Wipe Memory Vault</button>
+            </div>
+
+            <!-- Grid Content of Memories -->
+            <div class="memory-grid" id="memory-cards-grid">
+              <!-- Cards dynamically inserted here -->
+            </div>
+
+          </div>
+        </section>
+
+        <!-- 4. Skill Lab -->
+        <section id="tab-skills" class="tab-panel">
+          <div class="skills-workspace">
+            
+            <div class="skills-sidebar">
+              <h3>Active Skills & Tools</h3>
+              <div class="tools-list" id="active-tools-list">
+                <!-- Dynamically filled -->
+              </div>
+            </div>
+
+            <div class="skill-playground-area">
+              <div class="skill-playground-card">
+                <h3>Workflow Recorder & Skill Compiler</h3>
+                <p>Package successful terminal bash commands into a brand-new, permanent autonomous tool (skill) that the agent can utilize dynamically.</p>
+                
+                <div class="form-group mt-3">
+                  <label>Skill Name (e.g. CleanNodeTemp)</label>
+                  <input type="text" class="input-glass" placeholder="CleanNodeTemp" id="rec-skill-name">
+                </div>
+
+                <div class="form-group mt-2">
+                  <label>Skill Description</label>
+                  <input type="text" class="input-glass" placeholder="Removes temporary build files in node projects" id="rec-skill-desc">
+                </div>
+
+                <div class="form-group mt-2">
+                  <label>Commands Sequence (One per line)</label>
+                  <textarea class="textarea-glass" rows="4" placeholder="rimraf dist&#10;npm cache clean --force" id="rec-skill-cmds"></textarea>
+                </div>
+
+                <button class="btn btn-primary mt-3" id="btn-compile-skill">Compile and Build Skill</button>
+              </div>
+
+              <!-- Interactive testing card -->
+              <div class="skill-playground-card mt-3">
+                <h3>Interactive Tool Testbed</h3>
+                <p>Manually run any tool payload to verify output schema before saving.</p>
+                <div class="form-group mt-2">
+                  <select class="select-glass" id="test-tool-select"></select>
+                </div>
+                <div class="form-group mt-2">
+                  <textarea class="textarea-glass" rows="3" placeholder='{ "command": "dir" }' id="test-tool-args"></textarea>
+                </div>
+                <button class="btn btn-primary" id="btn-test-tool">Execute Tool</button>
+                <div class="console-box mini mt-2">
+                  <pre class="console-code" id="test-tool-out">Tool outputs will display here.</pre>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </section>
+
+        <!-- 5. Control Center -->
+        <section id="tab-settings" class="tab-panel">
+          <div class="settings-grid">
+            
+            <div class="settings-card">
+              <h3>Global Provider Keys</h3>
+              <div class="form-group">
+                <label>OpenRouter Token</label>
+                <input type="password" class="input-glass" placeholder="sk-or-..." id="key-openrouter">
+              </div>
+              <div class="form-group">
+                <label>OpenAI Token</label>
+                <input type="password" class="input-glass" placeholder="sk-proj-..." id="key-openai">
+              </div>
+              <div class="form-group">
+                <label>Anthropic Token</label>
+                <input type="password" class="input-glass" placeholder="sk-ant-..." id="key-anthropic">
+              </div>
+              <div class="form-group">
+                <label>Groq API Token</label>
+                <input type="password" class="input-glass" placeholder="gsk_..." id="key-groq">
+              </div>
+            </div>
+
+            <div class="settings-card">
+              <h3>Agent Orchestration Configurations</h3>
+              <div class="form-group">
+                <label>Default AI Provider</label>
+                <select class="select-glass" id="cfg-provider">
+                  <option value="openrouter">OpenRouter (100+ Models)</option>
+                  <option value="openai">OpenAI (GPT-4o, etc.)</option>
+                  <option value="anthropic">Anthropic (Claude 3.5, etc.)</option>
+                  <option value="groq">Groq (Ultra-Fast Llama)</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Default Model Name</label>
+                <input type="text" class="input-glass" placeholder="anthropic/claude-3-haiku" id="cfg-model">
+              </div>
+              <div class="form-group">
+                <label>UI Visual Theme</label>
+                <select class="select-glass" id="cfg-theme">
+                  <option value="hermes">Hermes (Purple & Cyan)</option>
+                  <option value="matrix">Matrix (Neon Green & Black)</option>
+                  <option value="dracula">Dracula (Pastel Red & Grey)</option>
+                  <option value="default">Default System Minimal</option>
+                </select>
+              </div>
+              
+              <div class="toggles-grid mt-3">
+                <div class="toggle-row">
+                  <label for="cfg-think">Self-Think (Internal Monologue)</label>
+                  <div class="toggle-switch">
+                    <input type="checkbox" id="cfg-think">
+                    <label for="cfg-think"></label>
+                  </div>
+                </div>
+                <div class="toggle-row">
+                  <label for="cfg-memory">Enable Long-Term Memory</label>
+                  <div class="toggle-switch">
+                    <input type="checkbox" id="cfg-memory">
+                    <label for="cfg-memory"></label>
+                  </div>
+                </div>
+                <div class="toggle-row">
+                  <label for="cfg-sandbox">Safe Sandbox Isolation</label>
+                  <div class="toggle-switch">
+                    <input type="checkbox" id="cfg-sandbox">
+                    <label for="cfg-sandbox"></label>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          <div class="settings-footer">
+            <button class="btn btn-primary" id="btn-save-settings">Save All Configurations</button>
+          </div>
+        </section>
+
+      </div>
+
+    </main>
+
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
