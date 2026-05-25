@@ -37,11 +37,12 @@ export class Logger {
     const t = theme();
 
     const logo = [
-      t.primary('  H   H EEEEE X   X  OOO  N   N IIIII TTTTT'),
-      t.secondary('  H   H E      X X  O   O NN  N   I     T  '),
-      t.secondary('  HHHHH EEEEE   X   O   O N N N   I     T  '),
-      t.secondary('  H   H E      X X  O   O N  NN   I     T  '),
-      t.primary('  H   H EEEEE X   X  OOO  N   N IIIII  T  '),
+      t.primary('  ██╗  ██╗███████╗██╗  ██╗ ██████╗ ███╗   ██╗██╗████████╗'),
+      t.secondary('  ██║  ██║██╔════╝╚██╗██╔╝██╔═══██╗████╗  ██║██║╚══██╔══╝'),
+      t.secondary('  ███████║█████╗   ╚███╔╝ ██║   ██║██╔██╗ ██║██║   ██║'),
+      t.secondary('  ██╔══██║██╔══╝   ██╔██╗ ██║   ██║██║╚██╗██║██║   ██║'),
+      t.primary('  ██║  ██║███████╗██╔╝ ██╗╚██████╔╝██║ ╚████║██║   ██║'),
+      t.primary('  ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═══╝╚═╝   ╚═╝'),
       '',
       t.muted('         v2.1.0-beta  |  Autonomous AI Agent CLI'),
       '',
