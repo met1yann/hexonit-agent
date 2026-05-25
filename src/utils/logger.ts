@@ -37,12 +37,13 @@ export class Logger {
     const t = theme();
 
     const logo = [
-      t.primary('   _  _  ____  ____  _  _  _____  ___   _  _  _  _  '),
-      t.primary('  | || ||___  ||  _|| || ||_   _|| _ \\ | || || || | '),
-      t.primary('  | || |_ / / | |_ | || |  | |  |  _/ | \\ V  V /| | '),
-      t.primary('  |___ v_\\_\\ |____||_||_|  |_|  |_|    \\_/\\_/ |_| '),
+      t.primary('  H   H EEEEE X   X  OOO  N   N IIIII TTTTT'),
+      t.secondary('  H   H E      X X  O   O NN  N   I     T  '),
+      t.secondary('  HHHHH EEEEE   X   O   O N N N   I     T  '),
+      t.secondary('  H   H E      X X  O   O N  NN   I     T  '),
+      t.primary('  H   H EEEEE X   X  OOO  N   N IIIII  T  '),
       '',
-      t.muted('        v2.1.0-beta  |  Autonomous AI Agent CLI'),
+      t.muted('         v2.1.0-beta  |  Autonomous AI Agent CLI'),
       '',
       chalk.yellow('  !  Hexonit BETA - hata yapabilir / may make mistakes'),
       '',
