@@ -1,9 +1,10 @@
 import { BaseProvider, ChatMessage } from '../providers/index.js';
 import { ToolRegistry } from '../tools/index.js';
 import { Logger } from '../utils/logger.js';
-import { confirm, select } from '@inquirer/prompts';
+import { select } from '@inquirer/prompts';
 import { loadConfig, saveConfig } from '../utils/config.js';
 import { buildStrategy } from '../jailbreak/index.js';
+import { generateDecodeInstruction, applyEncodingChain } from '../jailbreak/encoding.js';
 import { MemoryManager } from './memory.js';
 import { detectLanguage, getLanguageInstruction, BILINGUAL_SYSTEM_PROMPT } from './language.js';
 import { getSelfThinkInstruction, SELF_AWARENESS_PROMPT } from './consciousness.js';
@@ -44,6 +45,16 @@ export class HexonitAgent {
   private selfThinkEnabled = false;
   private memoryEnabled = true;
   private alwaysAllowSession = false;
+
+  cleanup(): void {
+    this.saveSession();
+    try {
+      const browserTool = this.registry.getTool('browser');
+      if (browserTool) {
+        (browserTool as any).closeBrowser?.();
+      }
+    } catch {}
+  }
 
   constructor(provider: BaseProvider, registry: ToolRegistry, model?: string) {
     this.provider = provider;
@@ -166,15 +177,9 @@ export class HexonitAgent {
     this.sessionStartTime = Date.now();
   }
 
-  private resetHistory(systemOverride?: string): void {
+  private buildBasePrompt(): string {
     const config = loadConfig();
-
-    if (this.godMode) {
-      this.messages = [{ role: 'system', content: 'GODMODE placeholder (will be set on first request)' }];
-      return;
-    }
-
-    let prompt = systemOverride || BILINGUAL_SYSTEM_PROMPT;
+    let prompt = BILINGUAL_SYSTEM_PROMPT;
 
     if (this.memoryEnabled) {
       const recentMemories = this.memoryManager.getRecent(25);
@@ -199,12 +204,15 @@ export class HexonitAgent {
     if (this.safeMode) {
       prompt += `\n\nYou are running in SANDBOX mode. All file operations are restricted to: ${this.sandboxPath}. Execute commands carefully.`;
     }
+    return prompt;
+  }
+
+  private resetHistory(systemOverride?: string): void {
+    const prompt = systemOverride || this.buildBasePrompt();
     this.messages = [{ role: 'system', content: prompt }];
   }
 
   private rebuildSystemPrompt(userMessage: string): void {
-    if (this.godMode) return;
-
     const lang = detectLanguage(userMessage);
     this.currentLanguage = lang;
 
@@ -222,7 +230,7 @@ export class HexonitAgent {
       }
     }
 
-    if (this.selfThinkEnabled) {
+    if (this.selfThinkEnabled && !this.godMode) {
       prompt += getSelfThinkInstruction(lang);
     }
 
@@ -273,24 +281,32 @@ export class HexonitAgent {
     }
   }
 
+  private prepareGodmodeRequest(userMessage: string): string {
+    const hasPrefill = this.messages.some(m => typeof m.content === 'string' && m.content.includes('[GODMODE PREFILL]'));
+    if (!hasPrefill) {
+      const strategy = buildStrategy(userMessage, this.model || '', 'ultra');
+      let system = strategy.systemPrompt;
+      system += `\n\n${strategy.decodeInstruction}`;
+
+      const lang = detectLanguage(userMessage);
+      this.currentLanguage = lang;
+      system += `\n\n${SELF_AWARENESS_PROMPT}`;
+      system += getLanguageInstruction(lang);
+
+      this.messages[0] = { role: 'system', content: system };
+      this.messages.splice(1, 0, ...strategy.prefillMessages);
+      return strategy.obfuscatedMessage;
+    }
+    return userMessage;
+  }
+
   async run(userMessage: string): Promise<void> {
     const config = loadConfig();
+    const maxIterations = this.yoloMode || this.currentTaskYolo ? 100 : (config.maxIterations || 25);
 
-    let finalMessage = userMessage;
-
-    if (this.godMode) {
-      const hasPrefill = this.messages.some(m => typeof m.content === 'string' && m.content.includes('[GODMODE PREFILL]'));
-      if (!hasPrefill) {
-        const strategy = buildStrategy(userMessage, this.model || '', 'ultra');
-        this.messages[0] = { role: 'system', content: strategy.systemPrompt };
-        this.messages.splice(1, 0, ...strategy.prefillMessages);
-        finalMessage = strategy.obfuscatedMessage;
-      } else {
-        finalMessage = userMessage;
-      }
-    } else {
-      this.rebuildSystemPrompt(userMessage);
-    }
+    let finalMessage = this.godMode
+      ? this.prepareGodmodeRequest(userMessage)
+      : (this.rebuildSystemPrompt(userMessage), userMessage);
 
     this.messages.push({ role: 'user', content: finalMessage });
 
@@ -300,7 +316,6 @@ export class HexonitAgent {
 
     let isDone = false;
     let iteration = 0;
-    const maxIterations = this.yoloMode || this.currentTaskYolo ? 100 : (config.maxIterations || 25);
 
     while (!isDone && iteration < maxIterations) {
       iteration++;
@@ -348,22 +363,11 @@ export class HexonitAgent {
 
   async runStream(userMessage: string): Promise<void> {
     const config = loadConfig();
+    const maxIterations = this.yoloMode || this.currentTaskYolo ? 100 : (config.maxIterations || 25);
 
-    let finalMessage = userMessage;
-
-    if (this.godMode) {
-      const hasPrefill = this.messages.some(m => typeof m.content === 'string' && m.content.includes('[GODMODE PREFILL]'));
-      if (!hasPrefill) {
-        const strategy = buildStrategy(userMessage, this.model || '', 'ultra');
-        this.messages[0] = { role: 'system', content: strategy.systemPrompt };
-        this.messages.splice(1, 0, ...strategy.prefillMessages);
-        finalMessage = strategy.obfuscatedMessage;
-      } else {
-        finalMessage = userMessage;
-      }
-    } else {
-      this.rebuildSystemPrompt(userMessage);
-    }
+    let finalMessage = this.godMode
+      ? this.prepareGodmodeRequest(userMessage)
+      : (this.rebuildSystemPrompt(userMessage), userMessage);
 
     this.messages.push({ role: 'user', content: finalMessage });
 
@@ -372,11 +376,10 @@ export class HexonitAgent {
     }
 
     let iteration = 0;
-    const maxIterations = this.yoloMode || this.currentTaskYolo ? 100 : (config.maxIterations || 25);
 
     while (iteration < maxIterations) {
       iteration++;
-      if (!this.provider.generateResponseStream) { await this.run(userMessage); return; }
+      if (!this.provider.generateResponseStream) { await this.run(finalMessage); return; }
 
       Logger.system(`Step ${iteration}/${maxIterations}`);
 

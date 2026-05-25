@@ -14,11 +14,31 @@ export class FetchUrlTool implements Tool {
 
   async execute(args: { url: string }): Promise<string> {
     try {
-      const response = await axios.get(args.url, {
+      const url = args.url.trim();
+
+      // SSRF protection: only allow http/https, block internal IPs
+      try {
+        const parsed = new URL(url);
+        if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+          return `ERROR: Only http/https URLs are allowed. Got: ${parsed.protocol}`;
+        }
+        const hostname = parsed.hostname.toLowerCase();
+        if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '0.0.0.0' ||
+            hostname === '[::1]' || hostname === '::1' ||
+            hostname.endsWith('.local') || hostname.endsWith('.internal') ||
+            hostname === '169.254.169.254' || hostname.startsWith('10.') ||
+            hostname.startsWith('172.16.') || hostname.startsWith('192.168.')) {
+          return `ERROR: URL blocked (internal/host-local address): ${hostname}`;
+        }
+      } catch {
+        return `ERROR: Invalid URL: ${url}`;
+      }
+
+      const response = await axios.get(url, {
         headers: {
           'User-Agent': 'HexonitAgent/1.0.0 (Autonomous Developer)'
         },
-        timeout: 10000 // 10 Sec Timeout Limit
+        timeout: 10000
       });
 
       let contentStr = '';

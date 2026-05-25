@@ -20,7 +20,7 @@ export class BashTool implements Tool {
 
   async execute(args: { command: string }): Promise<string> {
     try {
-      const { stdout, stderr } = await execAsync(args.command);
+      const { stdout, stderr } = await execAsync(args.command, { timeout: 30000, maxBuffer: 512 * 1024 });
       if (stderr && stderr.trim().length > 0) {
         return `STDOUT:\n${stdout}\nSTDERR:\n${stderr}`;
       }

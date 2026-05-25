@@ -40,9 +40,10 @@ async function ensureBrowser(): Promise<Page> {
     browserInstance = null;
   }
   const chromePath = findChrome();
+  const headless = process.env.HEXONIT_BROWSER_HEADLESS === 'true' ? 'new' : false;
   browserInstance = await puppeteer.launch({
     executablePath: chromePath,
-    headless: false,
+    headless,
     args: ['--start-maximized', '--no-sandbox', '--disable-blink-features=AutomationControlled'],
   });
   const pages = await browserInstance.pages();
@@ -55,7 +56,16 @@ function truncate(text: string, max = 4000): string {
   return text.length > max ? text.slice(0, max) + '\n... [truncated]' : text;
 }
 
+export async function closeBrowser(): Promise<void> {
+  if (browserInstance) {
+    try { await browserInstance.close(); } catch {}
+    browserInstance = null;
+    activePage = null;
+  }
+}
+
 export class BrowserTool implements Tool {
+  closeBrowser = closeBrowser;
   name = 'browser';
   description = `Full browser automation. Opens REAL Chrome window on your screen. Use list_elements first to discover what's on the page, then type/click/extract.
 

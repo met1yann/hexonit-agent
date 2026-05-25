@@ -22,7 +22,24 @@ export class AnthropicProvider implements BaseProvider {
         systemContent += (systemContent ? '\n' : '') + msg.content;
         continue;
       }
-      const entry: any = { role: msg.role === 'assistant' ? 'assistant' : 'user', content: msg.content };
+      if (msg.role === 'tool') {
+        result.push({
+          role: 'user',
+          content: [{ type: 'tool_result', tool_use_id: msg.tool_call_id, content: msg.content || '' }],
+        });
+        continue;
+      }
+      const entry: any = { role: msg.role === 'assistant' ? 'assistant' : 'user' };
+      if (msg.tool_calls) {
+        entry.content = msg.tool_calls.map((tc: any) => ({
+          type: 'tool_use',
+          id: tc.id,
+          name: tc.function.name,
+          input: (() => { try { return JSON.parse(tc.function.arguments); } catch { return tc.function.arguments; } })(),
+        }));
+      } else {
+        entry.content = msg.content;
+      }
       result.push(entry);
     }
     return { messages: result, system: systemContent || undefined };
@@ -130,6 +147,7 @@ export class AnthropicProvider implements BaseProvider {
 
       let buffer = '';
       let contentAccum = '';
+      const toolAccum = new Map<number, { id: string; name: string; args: string }>();
 
       for await (const chunk of res.data) {
         const decoded = chunk.toString('utf-8');
@@ -143,12 +161,47 @@ export class AnthropicProvider implements BaseProvider {
           const payload = trimmed.slice(6);
           try {
             const parsed = JSON.parse(payload);
-            if (parsed.type === 'content_block_delta' && parsed.delta?.type === 'text_delta') {
-              contentAccum += parsed.delta.text;
-              yield { type: 'delta', delta: parsed.delta.text };
+
+            if (parsed.type === 'content_block_start' && parsed.content_block?.type === 'tool_use') {
+              const idx = parsed.index;
+              toolAccum.set(idx, {
+                id: parsed.content_block.id,
+                name: parsed.content_block.name,
+                args: '',
+              });
+              continue;
             }
+
+            if (parsed.type === 'content_block_delta') {
+              if (parsed.delta?.type === 'text_delta') {
+                contentAccum += parsed.delta.text;
+                yield { type: 'delta', delta: parsed.delta.text };
+              }
+              if (parsed.delta?.type === 'input_json_delta') {
+                const idx = parsed.index;
+                const existing = toolAccum.get(idx);
+                if (existing) {
+                  existing.args += parsed.delta.partial_json || '';
+                }
+              }
+              continue;
+            }
+
+            if (parsed.type === 'message_delta' && parsed.delta?.stop_reason === 'tool_use') {
+              continue;
+            }
+
             if (parsed.type === 'message_stop') {
-              yield { type: 'done' };
+              if (toolAccum.size > 0) {
+                const toolCalls = Array.from(toolAccum.values()).map(t => ({
+                  id: t.id,
+                  type: 'function' as const,
+                  function: { name: t.name, arguments: t.args },
+                }));
+                yield { type: 'done', message: { role: 'assistant', content: contentAccum, tool_calls: toolCalls } };
+              } else {
+                yield { type: 'done' };
+              }
               return;
             }
           } catch {
@@ -156,7 +209,16 @@ export class AnthropicProvider implements BaseProvider {
           }
         }
       }
-      yield { type: 'done' };
+      if (toolAccum.size > 0) {
+        const toolCalls = Array.from(toolAccum.values()).map(t => ({
+          id: t.id,
+          type: 'function' as const,
+          function: { name: t.name, arguments: t.args },
+        }));
+        yield { type: 'done', message: { role: 'assistant', content: contentAccum, tool_calls: toolCalls } };
+      } else {
+        yield { type: 'done' };
+      }
     } catch (error: any) {
       if (error.name === 'AbortError' || error.message?.includes('canceled')) {
         yield { type: 'error', error: 'Request cancelled' };

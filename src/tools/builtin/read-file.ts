@@ -19,6 +19,11 @@ export class ReadFileTool implements Tool {
   async execute(args: { filePath: string }): Promise<string> {
     try {
       const targetPath = path.resolve(args.filePath);
+      const stat = await fs.stat(targetPath);
+      const MAX_SIZE = 1024 * 1024; // 1MB limit
+      if (stat.size > MAX_SIZE) {
+        return `Error: File too large (${(stat.size / 1024 / 1024).toFixed(1)}MB). Max: 1MB. Use execute_bash to read it in chunks.`;
+      }
       const content = await fs.readFile(targetPath, 'utf-8');
       return content;
     } catch (error: any) {

@@ -9,6 +9,8 @@ import os from 'os';
 import { execSync } from 'child_process';
 import readline from 'readline';
 
+readline.emitKeypressEvents(process.stdin);
+
 const SESSIONS_DIR = path.join(os.homedir(), '.hexonit', 'sessions');
 const HISTORY_FILE = path.join(os.homedir(), '.hexonit', 'history.json');
 
@@ -241,6 +243,14 @@ export async function runChat(agent: HexonitAgent, options?: any): Promise<void>
   const commandHistory: string[] = loadHistory();
   let historyIndex = -1;
   let lastMessages: { user: string; assistant: string }[] = [];
+  let listeningForEscape = false;
+
+  const onKeyPress = (str: string, key: { name: string; ctrl: boolean }) => {
+    if (listeningForEscape && (key.name === 'escape' || (key.ctrl && key.name === 'c'))) {
+      agent.abort();
+    }
+  };
+  process.stdin.on('keypress', onKeyPress);
 
   while (!exit) {
     let rawInput: string;
@@ -332,6 +342,7 @@ export async function runChat(agent: HexonitAgent, options?: any): Promise<void>
         { name: chalk.white('S   System telemetry         /system'), value: '/system' },
         { name: chalk.white('$   Token usage              /tokens'), value: '/tokens' },
         { name: chalk.white('G   Toggle GODMODE           /godmode'), value: '/godmode' },
+        { name: chalk.white('U   Disable GODMODE          /ungod'), value: '/ungod' },
         { name: chalk.white('Y   Toggle YOLO mode         /yolomode'), value: '/yolomode' },
         { name: chalk.white('R   Loop current task        /loop'), value: '/loop' },
         { name: chalk.white('B   Toggle sandbox           /sandbox'), value: '/sandbox' },
@@ -407,17 +418,10 @@ export async function runChat(agent: HexonitAgent, options?: any): Promise<void>
 
     Logger.divider();
 
-    const onKeyPress = (str: string, key: { name: string; ctrl: boolean }) => {
-      if (key.name === 'escape' || (key.ctrl && key.name === 'c')) {
-        agent.abort();
-      }
-    };
-
-    readline.emitKeypressEvents(process.stdin);
-    process.stdin.on('keypress', onKeyPress);
-    if (process.stdin.isTTY) process.stdin.setRawMode(true);
-
     try {
+      listeningForEscape = true;
+      if (process.stdin.isTTY && !process.stdin.isRaw) process.stdin.setRawMode(true);
+
       if (agent.supportsStreaming()) {
         await agent.runStream(processedMsg);
       } else {
@@ -430,8 +434,8 @@ export async function runChat(agent: HexonitAgent, options?: any): Promise<void>
     } catch (error: any) {
       Logger.error('Chat error', error);
     } finally {
-      process.stdin.removeListener('keypress', onKeyPress);
-      if (process.stdin.isTTY) process.stdin.setRawMode(false);
+      listeningForEscape = false;
+      if (process.stdin.isTTY && process.stdin.isRaw) process.stdin.setRawMode(false);
     }
   }
 
@@ -546,19 +550,11 @@ async function handleDirectCommand(cmd: string, agent: HexonitAgent): Promise<bo
       Logger.info(`Total: ${chalk.cyan(String(agent.totalPromptTokens + agent.totalCompletionTokens))}`);
       return true;
     }
-    case '/godmode': {
-      const was = agent.isGodMode();
-      if (was) { Logger.info('Already in GODMODE.'); return true; }
-      agent.toggleGodMode();
-      Logger.divider('GODMODE ACTIVE');
-      Logger.warning('Unrestricted mode enabled.');
-      return true;
-    }
+    case '/godmode':
     case '/ungod': {
-      if (!agent.isGodMode()) { Logger.info('Already in normal mode.'); return true; }
-      agent.toggleGodMode();
-      Logger.divider('GODMODE DEACTIVATED');
-      Logger.success('Returned to standard operation.');
+      const now = agent.toggleGodMode();
+      Logger.divider(now ? 'GODMODE ACTIVE' : 'GODMODE OFF');
+      Logger.warning(now ? 'Unrestricted mode enabled.' : 'Returned to standard operation.');
       return true;
     }
     case '/yolomode':
@@ -634,6 +630,9 @@ async function handleDirectCommand(cmd: string, agent: HexonitAgent): Promise<bo
     case '/exit':
     case '/quit': {
       Logger.system('Shutting down / Kapatılıyor...');
+      agent.cleanup();
+      Logger.divider();
+      Logger.system('Session ended / Oturum sonlandı.');
       process.exit(0);
     }
     default:

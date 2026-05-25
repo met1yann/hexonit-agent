@@ -63,16 +63,16 @@ function ensureConfigExists(): void {
 }
 
 function envOverrides(config: HexonitConfig): HexonitConfig {
-  const c = { ...config, keys: { ...config.keys } };
-  if (process.env.HEXONIT_PROVIDER) c.defaultProvider = process.env.HEXONIT_PROVIDER;
-  if (process.env.HEXONIT_MODEL) c.defaultModel = process.env.HEXONIT_MODEL;
-  if (process.env.HEXONIT_THEME) c.uiTheme = process.env.HEXONIT_THEME;
-  if (process.env.OPENAI_API_KEY) c.keys.openai = process.env.OPENAI_API_KEY;
-  if (process.env.OPENROUTER_API_KEY) c.keys.openrouter = process.env.OPENROUTER_API_KEY;
-  if (process.env.ANTHROPIC_API_KEY) c.keys.anthropic = process.env.ANTHROPIC_API_KEY;
-  if (process.env.GROQ_API_KEY) c.keys.groq = process.env.GROQ_API_KEY;
-  if (process.env.GITHUB_TOKEN) c.keys.github = process.env.GITHUB_TOKEN;
-  if (process.env.TELEGRAM_BOT_TOKEN) c.keys.telegram = process.env.TELEGRAM_BOT_TOKEN;
+  const c = { ...config, keys: { ...config.keys }, __envOverridden: new Set<string>() } as any;
+  if (process.env.HEXONIT_PROVIDER) { c.defaultProvider = process.env.HEXONIT_PROVIDER; c.__envOverridden.add('defaultProvider'); }
+  if (process.env.HEXONIT_MODEL) { c.defaultModel = process.env.HEXONIT_MODEL; c.__envOverridden.add('defaultModel'); }
+  if (process.env.HEXONIT_THEME) { c.uiTheme = process.env.HEXONIT_THEME; c.__envOverridden.add('uiTheme'); }
+  if (process.env.OPENAI_API_KEY) { c.keys.openai = process.env.OPENAI_API_KEY; c.__envOverridden.add('keys.openai'); }
+  if (process.env.OPENROUTER_API_KEY) { c.keys.openrouter = process.env.OPENROUTER_API_KEY; c.__envOverridden.add('keys.openrouter'); }
+  if (process.env.ANTHROPIC_API_KEY) { c.keys.anthropic = process.env.ANTHROPIC_API_KEY; c.__envOverridden.add('keys.anthropic'); }
+  if (process.env.GROQ_API_KEY) { c.keys.groq = process.env.GROQ_API_KEY; c.__envOverridden.add('keys.groq'); }
+  if (process.env.GITHUB_TOKEN) { c.keys.github = process.env.GITHUB_TOKEN; c.__envOverridden.add('keys.github'); }
+  if (process.env.TELEGRAM_BOT_TOKEN) { c.keys.telegram = process.env.TELEGRAM_BOT_TOKEN; c.__envOverridden.add('keys.telegram'); }
   return c;
 }
 
@@ -89,8 +89,14 @@ export function loadConfig(): HexonitConfig {
 
 export function saveConfig(config: HexonitConfig): void {
   ensureConfigExists();
-  const toSave = { ...config };
-  delete (toSave as any).__envOverride;
+  const toSave = { ...config, keys: { ...config.keys } };
+  const overridden: Set<string> = (config as any).__envOverridden || new Set();
+  for (const key of overridden) {
+    const parts = key.split('.');
+    if (parts.length === 1) delete (toSave as any)[parts[0]];
+    if (parts.length === 2 && parts[0] === 'keys') delete (toSave as any).keys[parts[1]];
+  }
+  delete (toSave as any).__envOverridden;
   fs.writeFileSync(CONFIG_FILE, JSON.stringify(toSave, null, 2), 'utf-8');
 }
 
