@@ -1,7 +1,7 @@
 import { BaseProvider, ChatMessage } from '../providers/index.js';
 import { ToolRegistry } from '../tools/index.js';
 import { Logger } from '../utils/logger.js';
-import { confirm } from '@inquirer/prompts';
+import { confirm, select } from '@inquirer/prompts';
 import { loadConfig, saveConfig } from '../utils/config.js';
 import { buildStrategy } from '../jailbreak/index.js';
 import { MemoryManager } from './memory.js';
@@ -10,7 +10,6 @@ import { getSelfThinkInstruction, SELF_AWARENESS_PROMPT } from './consciousness.
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import ora from 'ora';
 
 const SESSIONS_DIR = path.join(os.homedir(), '.hexonit', 'sessions');
 
@@ -44,6 +43,7 @@ export class HexonitAgent {
   private currentLanguage: 'tr' | 'en' = 'en';
   private selfThinkEnabled = false;
   private memoryEnabled = true;
+  private alwaysAllowSession = false;
 
   constructor(provider: BaseProvider, registry: ToolRegistry, model?: string) {
     this.provider = provider;
@@ -68,16 +68,24 @@ export class HexonitAgent {
       this.registry.setPermissionCheck(null);
       return;
     }
+    this.alwaysAllowSession = false;
     this.registry.setPermissionCheck(async (name, args) => {
+      if (this.alwaysAllowSession) return true;
       const argsStr = JSON.stringify(args, null, 2);
-      Logger.system(`Requesting permission for: ${name}`);
+      Logger.system(`Tool: ${name}`);
       Logger.system(`Args: ${argsStr.slice(0, 300)}`);
       try {
-        const answer = await confirm({
+        const answer = await select<string>({
           message: `Allow "${name}"?`,
-          default: false,
+          choices: [
+            { name: 'Allow / Izin ver', value: 'allow' },
+            { name: 'Deny / Reddet', value: 'deny' },
+            { name: 'Always allow (this session) / Hep izin ver', value: 'always' },
+          ],
         });
-        return answer;
+        if (answer === 'allow') return true;
+        if (answer === 'always') { this.alwaysAllowSession = true; return true; }
+        return false;
       } catch {
         return false;
       }
@@ -253,12 +261,15 @@ export class HexonitAgent {
   }
 
   private async executeToolCalls(toolCalls: NonNullable<ChatMessage['tool_calls']>): Promise<void> {
-    for (const tc of toolCalls) {
+    const results = await Promise.all(toolCalls.map(async (tc) => {
       let args: any;
       try { args = JSON.parse(tc.function.arguments); } catch { args = tc.function.arguments; }
       Logger.tool(tc.function.name, 'executing...');
       const result = await this.registry.executeTool(tc.function.name, args);
-      this.messages.push({ role: 'tool', tool_call_id: tc.id, name: tc.function.name, content: result });
+      return { id: tc.id, name: tc.function.name, result };
+    }));
+    for (const r of results) {
+      this.messages.push({ role: 'tool', tool_call_id: r.id, name: r.name, content: r.result });
     }
   }
 
@@ -293,7 +304,7 @@ export class HexonitAgent {
 
     while (!isDone && iteration < maxIterations) {
       iteration++;
-      const spinner = ora({ text: `Hexonit thinking... (step ${iteration}/${maxIterations})`, color: 'cyan' }).start();
+      Logger.system(`Thinking (${iteration}/${maxIterations})...`);
       this.currentAbort = new AbortController();
 
       try {
@@ -301,7 +312,6 @@ export class HexonitAgent {
           this.messages, this.registry.getAllTools(), this.model,
           { signal: this.currentAbort.signal }
         );
-        spinner.stop();
         const message = response.message;
         this.messages.push(message);
         if (response.usage) {
@@ -309,6 +319,7 @@ export class HexonitAgent {
           this.totalCompletionTokens += response.usage.completionTokens;
         }
         if (message.tool_calls && message.tool_calls.length > 0) {
+          Logger.system(`Tool calls: ${message.tool_calls.map(t => t.function.name).join(', ')}`);
           await this.executeToolCalls(message.tool_calls);
         } else {
           isDone = true;
@@ -321,7 +332,6 @@ export class HexonitAgent {
           if (this.totalCompletionTokens > 0) Logger.usage(this.totalPromptTokens, this.totalCompletionTokens);
         }
       } catch (error: any) {
-        spinner.stop();
         if (error.name === 'AbortError' || error.message?.includes('canceled')) {
           Logger.warning('Interrupted by user.'); isDone = true; return;
         }
@@ -368,7 +378,8 @@ export class HexonitAgent {
       iteration++;
       if (!this.provider.generateResponseStream) { await this.run(userMessage); return; }
 
-      const spinner = ora({ text: 'Hexonit thinking...', color: 'cyan' }).start();
+      Logger.system(`Step ${iteration}/${maxIterations}`);
+
       this.currentAbort = new AbortController();
       const stream = this.provider.generateResponseStream(
         this.messages, this.registry.getAllTools(), this.model,
@@ -376,7 +387,6 @@ export class HexonitAgent {
       );
       let content = '';
       let finalMsg: ChatMessage | null = null;
-      spinner.stop();
 
       try {
         for await (const event of stream) {
@@ -392,6 +402,8 @@ export class HexonitAgent {
         if (content) process.stdout.write('\n');
 
         if (finalMsg?.tool_calls?.length) {
+          const toolNames = finalMsg.tool_calls.map(t => t.function.name).join(', ');
+          Logger.system(`Tools: ${toolNames}`);
           this.messages.push(finalMsg);
           await this.executeToolCalls(finalMsg.tool_calls);
         } else {
@@ -411,7 +423,13 @@ export class HexonitAgent {
         }
       } catch (error: any) {
         if (error.name === 'AbortError' || error.message?.includes('canceled')) {
-          Logger.warning('Interrupted by user.'); this.saveSession(); return;
+          if (content.trim()) {
+            this.messages.push({ role: 'assistant', content });
+            Logger.agent(content + '\n\n*[Interrupted by user / Kullanici tarafindan durduruldu]*');
+          } else {
+            Logger.warning('Interrupted by user.');
+          }
+          this.saveSession(); return;
         }
         Logger.error('Agent error', error); this.saveSession(); return;
       }

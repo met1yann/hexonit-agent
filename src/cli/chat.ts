@@ -7,6 +7,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import { execSync } from 'child_process';
+import readline from 'readline';
 
 const SESSIONS_DIR = path.join(os.homedir(), '.hexonit', 'sessions');
 const HISTORY_FILE = path.join(os.homedir(), '.hexonit', 'history.json');
@@ -406,6 +407,16 @@ export async function runChat(agent: HexonitAgent, options?: any): Promise<void>
 
     Logger.divider();
 
+    const onKeyPress = (str: string, key: { name: string; ctrl: boolean }) => {
+      if (key.name === 'escape' || (key.ctrl && key.name === 'c')) {
+        agent.abort();
+      }
+    };
+
+    readline.emitKeypressEvents(process.stdin);
+    process.stdin.on('keypress', onKeyPress);
+    if (process.stdin.isTTY) process.stdin.setRawMode(true);
+
     try {
       if (agent.supportsStreaming()) {
         await agent.runStream(processedMsg);
@@ -418,6 +429,9 @@ export async function runChat(agent: HexonitAgent, options?: any): Promise<void>
       console.log('');
     } catch (error: any) {
       Logger.error('Chat error', error);
+    } finally {
+      process.stdin.removeListener('keypress', onKeyPress);
+      if (process.stdin.isTTY) process.stdin.setRawMode(false);
     }
   }
 
