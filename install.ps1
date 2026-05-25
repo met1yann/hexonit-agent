@@ -7,6 +7,10 @@ $ConfigDir = "$env:USERPROFILE\.hexonit"
 Write-Host "== Hexonit Agent Installer ==" -ForegroundColor Cyan
 Write-Host ""
 
+# Step 0 - Clean old install
+Remove-Item "$env:APPDATA\npm\node_modules\hexonit-agent" -Recurse -Force -ErrorAction SilentlyContinue
+Remove-Item "$env:APPDATA\npm\hexonit*" -Force -ErrorAction SilentlyContinue
+
 # Step 1 - Node.js check
 Write-Host "[1/4] Node.js kontrol ediliyor..." -ForegroundColor Cyan
 $nodeVer = node --version 2>$null
@@ -55,12 +59,12 @@ if ($LASTEXITCODE -ne 0) { Write-Host "  HATA: npm install basarisiz" -Foregroun
 npm run build --loglevel=error 2>$null
 if ($LASTEXITCODE -ne 0) { Write-Host "  HATA: Build basarisiz" -ForegroundColor Red; Pop-Location; exit 1 }
 
-npm link 2>$null
+npm install -g . --force 2>$null
 if ($LASTEXITCODE -ne 0) {
-    Write-Host "  npm link basarisiz. Yonetici olarak calistirin: cd $tempDir && npm link" -ForegroundColor Yellow
-} else {
-    Write-Host "  OK" -ForegroundColor Green
+    Write-Host "  HATA: Global kurulum basarisiz. Yonetici PowerShell'den calistirin." -ForegroundColor Red
+    Pop-Location; exit 1
 }
+Write-Host "  OK" -ForegroundColor Green
 
 Pop-Location
 
