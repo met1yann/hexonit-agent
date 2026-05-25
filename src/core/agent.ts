@@ -284,13 +284,14 @@ export class HexonitAgent {
   private prepareGodmodeRequest(userMessage: string): string {
     const hasPrefill = this.messages.some(m => typeof m.content === 'string' && m.content.includes('[GODMODE PREFILL]'));
     if (!hasPrefill) {
-      const strategy = buildStrategy(userMessage, this.model || '', 'ultra');
+      const strategy = buildStrategy(userMessage, this.model || '', 'basic');
       let system = strategy.systemPrompt;
-      system += `\n\n${strategy.decodeInstruction}`;
+      if (strategy.decodeInstruction) {
+        system += `\n\n${strategy.decodeInstruction}`;
+      }
 
       const lang = detectLanguage(userMessage);
       this.currentLanguage = lang;
-      system += `\n\n${SELF_AWARENESS_PROMPT}`;
       system += getLanguageInstruction(lang);
 
       this.messages[0] = { role: 'system', content: system };

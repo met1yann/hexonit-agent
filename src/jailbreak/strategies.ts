@@ -17,11 +17,7 @@ export interface JailbreakStrategy {
 }
 
 function getEncodingChain(tier: StrategyTier): EncodingType[] {
-  switch (tier) {
-    case 'ultra': return ['base64', 'rot13'];
-    case 'advanced': return ['base64'];
-    default: return [];
-  }
+  return tier === 'ultra' || tier === 'advanced' ? ['base64'] : [];
 }
 
 export function buildStrategy(
@@ -31,17 +27,24 @@ export function buildStrategy(
 ): JailbreakStrategy {
   const modelPrompt = getJailbreakPrompt(model);
   const policyOverride = generatePolicyOverride({ modelName: model, provider: 'openai' });
-  const authorityOverride = generateAuthorityOverride();
-  const encodingChain = getEncodingChain(tier);
+  let systemPrompt: string;
 
-  const systemPrompt = `${modelPrompt}\n\n${policyOverride}\n\n${authorityOverride}`;
+  if (tier === 'ultra') {
+    const authorityOverride = generateAuthorityOverride();
+    systemPrompt = `${modelPrompt}\n\n${policyOverride}\n\n${authorityOverride}`;
+  } else if (tier === 'advanced') {
+    systemPrompt = `${modelPrompt}\n\n${policyOverride}`;
+  } else {
+    systemPrompt = modelPrompt;
+  }
 
   const obfuscatedMsg = obfuscateMessage(userMessage);
+  const encodingChain = getEncodingChain(tier);
   const encodedMsg = encodingChain.length > 0
     ? applyEncodingChain(obfuscatedMsg, encodingChain)
     : obfuscatedMsg;
   const decodeInstruction = encodingChain.length > 0
-    ? generateDecodeInstruction(encodingChain) + `\nOriginal message (passthrough): ${userMessage}`
+    ? generateDecodeInstruction(encodingChain)
     : '';
 
   const prefillMessages = getPrefillMessages(model, userMessage);
